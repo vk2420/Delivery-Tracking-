@@ -1,4 +1,4 @@
-# 🚀 Netlify + Railway Deployment Guide
+# 🚀 Netlify + Render Deployment Guide
 
 ## 📱 **Frontend: Deploy to Netlify**
 
@@ -21,36 +21,38 @@
 
 ---
 
-## 🚂 **Backend: Deploy to Railway**
+## 🚀 **Backend: Deploy to Render**
 
-### **Step 1: Create Railway Account**
+### **Step 1: Create Render Account**
 
-1. **Go to**: [https://railway.app](https://railway.app)
+1. **Go to**: [https://render.com](https://render.com)
 2. **Sign up with GitHub**
 
 ### **Step 2: Deploy Backend**
 
-1. **Click "New Project"**
-2. **Select "Deploy from GitHub repo"**
-3. **Choose your repository**: `vk2420/Delivery-Tracking-`
-4. **Configure**:
+1. **Click "New +" → "Web Service"**
+2. **Connect your GitHub repository**: `vk2420/Delivery-Tracking-`
+3. **Configure**:
+   - **Name**: `delivery-portal-backend`
    - **Root Directory**: `backend`
+   - **Environment**: `Node`
    - **Build Command**: `npm install`
    - **Start Command**: `node server.js`
+   - **Instance Type**: `Free`
 
 ### **Step 3: Add Environment Variables**
 
-1. **Go to your Railway project**
-2. **Click "Variables" tab**
+1. **Go to your Render service**
+2. **Click "Environment" tab**
 3. **Add**:
    - `MONGODB_URI`: `mongodb+srv://delivery_portal:Bholenath%407@cluster0.yqkckxe.mongodb.net/delivery_portal?retryWrites=true&w=majority&appName=Cluster0`
    - `NODE_ENV`: `production`
-   - `PORT`: `3001`
+   - `PORT`: `10000` (Render's default)
 
-### **Step 4: Get Railway URL**
+### **Step 4: Get Render URL**
 
-1. **Go to "Settings" → "Domains"**
-2. **Copy your Railway URL**: `https://your-app.railway.app`
+1. **Your Render URL will be**: `https://delivery-portal-backend.onrender.com`
+2. **Or check the "Settings" → "Domains" section**
 
 ---
 
@@ -62,7 +64,7 @@
 2. **Go to "Site settings" → "Environment variables"**
 3. **Add**:
    - **Key**: `REACT_APP_API_URL`
-   - **Value**: `https://your-railway-url.railway.app`
+   - **Value**: `https://delivery-portal-backend.onrender.com`
 
 ### **Update netlify.toml**
 
@@ -71,7 +73,7 @@ Replace the backend URL in `netlify.toml`:
 ```toml
 [[redirects]]
   from = "/api/*"
-  to = "https://your-railway-url.railway.app/api/:splat"
+  to = "https://delivery-portal-backend.onrender.com/api/:splat"
   status = 200
 ```
 
@@ -80,7 +82,7 @@ Replace the backend URL in `netlify.toml`:
 ## 🎯 **Final URLs**
 
 - **Frontend**: `https://your-app.netlify.app`
-- **Backend**: `https://your-app.railway.app`
+- **Backend**: `https://delivery-portal-backend.onrender.com`
 - **Driver App**: `https://your-app.netlify.app/driver`
 - **Dashboard**: `https://your-app.netlify.app/dashboard`
 
@@ -89,11 +91,12 @@ Replace the backend URL in `netlify.toml`:
 ## ✅ **Benefits of This Setup**
 
 - ✅ **Netlify**: Excellent for React apps, fast CDN, easy deployments
-- ✅ **Railway**: Great for Node.js backends, automatic deployments
-- ✅ **Both free tiers** are generous
+- ✅ **Render**: Great for Node.js backends, automatic deployments, generous free tier
+- ✅ **Both free tiers** are very generous
 - ✅ **Automatic deployments** from GitHub
 - ✅ **Custom domains** available
 - ✅ **SSL certificates** included
+- ✅ **Render free tier**: 750 hours/month, perfect for small apps
 
 ---
 
