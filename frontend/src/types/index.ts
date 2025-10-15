@@ -39,6 +39,8 @@ export interface Delivery {
   customerId: Customer;
   driverId: Driver;
   invoiceNo: string;
+  doNumber?: string;
+  date?: string;
   items: DeliveryItem[];
   status: 'Out for Delivery' | 'Delivered' | 'Not Delivered' | 'Postponed' | 'Replacement Scheduled' | 'On Hold' | 'Cancelled' | 'RTS';
   reason?: string;
