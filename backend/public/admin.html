@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WWD Furniture - Delivery Status Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #666;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .deliveries-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filters select, .filters button {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .filters button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .filters button:hover {
+            background: #5568d3;
+        }
+
+        .delivery-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: box-shadow 0.3s;
+        }
+
+        .delivery-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .delivery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .delivery-header h3 {
+            color: #333;
+            font-size: 18px;
+        }
+
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-out-for-delivery { background: #e3f2fd; color: #1976d2; }
+        .status-delivered { background: #e8f5e9; color: #388e3c; }
+        .status-failed { background: #ffebee; color: #c62828; }
+        .status-postponed { background: #fff3e0; color: #f57c00; }
+        .status-replacement { background: #f3e5f5; color: #7b1fa2; }
+        .status-on-hold { background: #fce4ec; color: #c2185b; }
+
+        .delivery-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-item span:first-child {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .delivery-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .btn-failed { background: #ffcdd2; color: #c62828; }
+        .btn-failed:hover { background: #ef5350; color: white; }
+        
+        .btn-postpone { background: #ffe0b2; color: #f57c00; }
+        .btn-postpone:hover { background: #ff9800; color: white; }
+        
+        .btn-delivered { background: #c8e6c9; color: #388e3c; }
+        .btn-delivered:hover { background: #4caf50; color: white; }
+        
+        .btn-replacement { background: #e1bee7; color: #7b1fa2; }
+        .btn-replacement:hover { background: #9c27b0; color: white; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-cancel {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .btn-submit {
+            background: #667eea;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚚 WWD Furniture - Delivery Manager</h1>
+            <p>Manage delivery statuses and send customer notifications</p>
+        </div>
+
+        <div class="stats" id="stats">
+            <!-- Stats will be loaded here -->
+        </div>
+
+        <div class="deliveries-container">
+            <div class="filters">
+                <select id="statusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="Out for Delivery">Out for Delivery</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Postponed">Postponed</option>
+                    <option value="Replacement Scheduled">Replacement Scheduled</option>
+                    <option value="On Hold">On Hold</option>
+                </select>
+                <button onclick="loadDeliveries()">🔄 Refresh</button>
+            </div>
+
+            <div id="deliveriesList">
+                <div class="loading">Loading deliveries...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for status updates -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Update Delivery Status</h2>
+            
+            <form id="statusForm">
+                <input type="hidden" id="deliveryId">
+                
+                <div class="form-group">
+                    <label>Invoice Number</label>
+                    <input type="text" id="modalInvoiceNo" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Customer</label>
+                    <input type="text" id="modalCustomer" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>New Status</label>
+                    <select id="newStatus" required>
+                        <option value="Failed">Failed</option>
+                        <option value="Postponed">Postponed</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Replacement Scheduled">Replacement Scheduled</option>
+                        <option value="On Hold">On Hold</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="reasonGroup">
+                    <label>Reason (English)</label>
+                    <textarea id="failureReason" placeholder="e.g., Customer not available"></textarea>
+                </div>
+
+                <div class="form-group" id="reasonArabicGroup">
+                    <label>Reason (Arabic)</label>
+                    <textarea id="failureReasonArabic" placeholder="e.g., العميل غير متوفر"></textarea>
+                </div>
+
+                <div class="form-group" id="postponedDateGroup" style="display:none;">
+                    <label>New Delivery Date</label>
+                    <input type="datetime-local" id="postponedDate">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-submit">Update & Send Notification</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let currentDeliveries = [];
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/deliveries/stats/summary`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.data;
+                    document.getElementById('stats').innerHTML = `
+                        <div class="stat-card">
+                            <div class="number">${stats.total}</div>
+                            <div class="label">Total Today</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${stats.outForDelivery}</div>
+                            <div class="label">Out for Delivery</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${stats.delivered}</div>
+                            <div class="label">Delivered</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${stats.failed}</div>
+                            <div class="label">Failed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${stats.postponed}</div>
+                            <div class="label">Postponed</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Load deliveries
+        async function loadDeliveries() {
+            try {
+                const statusFilter = document.getElementById('statusFilter').value;
+                let url = `${API_BASE}/deliveries`;
+                if (statusFilter) {
+                    url += `?status=${encodeURIComponent(statusFilter)}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentDeliveries = data.data;
+                    renderDeliveries(currentDeliveries);
+                }
+            } catch (error) {
+                console.error('Error loading deliveries:', error);
+                document.getElementById('deliveriesList').innerHTML = `
+                    <div class="empty-state">
+                        <p>Error loading deliveries. Please refresh.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render deliveries
+        function renderDeliveries(deliveries) {
+            const container = document.getElementById('deliveriesList');
+            
+            if (deliveries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No deliveries found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = deliveries.map(delivery => {
+                const statusClass = delivery.status.toLowerCase().replace(/ /g, '-');
+                const customer = delivery.customerId || {};
+                const driver = delivery.driverId || {};
+                
+                return `
+                    <div class="delivery-card">
+                        <div class="delivery-header">
+                            <h3>Invoice #${delivery.invoiceNo}</h3>
+                            <span class="status-badge status-${statusClass}">${delivery.status}</span>
+                        </div>
+                        
+                        <div class="delivery-info">
+                            <div class="info-item">
+                                <span>Customer:</span>
+                                <span>${customer.name || 'N/A'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Phone:</span>
+                                <span>${customer.phone1 || 'N/A'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Driver:</span>
+                                <span>${driver.name || 'N/A'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Shift:</span>
+                                <span>${delivery.shift || 'N/A'}</span>
+                            </div>
+                        </div>
+
+                        ${delivery.failureReason ? `
+                            <div style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 5px;">
+                                <strong>Reason:</strong> ${delivery.failureReason}
+                            </div>
+                        ` : ''}
+
+                        ${delivery.status === 'Out for Delivery' ? `
+                            <div class="delivery-actions">
+                                <button class="action-btn btn-delivered" onclick="openModal('${delivery._id}', 'Delivered')">
+                                    ✅ Mark Delivered
+                                </button>
+                                <button class="action-btn btn-failed" onclick="openModal('${delivery._id}', 'Failed')">
+                                    ❌ Mark Failed
+                                </button>
+                                <button class="action-btn btn-postpone" onclick="openModal('${delivery._id}', 'Postponed')">
+                                    📅 Postpone
+                                </button>
+                                <button class="action-btn btn-replacement" onclick="openModal('${delivery._id}', 'Replacement Scheduled')">
+                                    🔄 Replacement
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Open status update modal
+        function openModal(deliveryId, suggestedStatus = 'Failed') {
+            const delivery = currentDeliveries.find(d => d._id === deliveryId);
+            if (!delivery) return;
+
+            document.getElementById('deliveryId').value = deliveryId;
+            document.getElementById('modalInvoiceNo').value = delivery.invoiceNo;
+            document.getElementById('modalCustomer').value = delivery.customerId?.name || 'N/A';
+            document.getElementById('newStatus').value = suggestedStatus;
+            
+            // Show/hide fields based on status
+            handleStatusChange();
+            
+            document.getElementById('statusModal').classList.add('active');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('statusModal').classList.remove('active');
+            document.getElementById('statusForm').reset();
+        }
+
+        // Handle status change in modal
+        document.getElementById('newStatus')?.addEventListener('change', handleStatusChange);
+
+        function handleStatusChange() {
+            const status = document.getElementById('newStatus').value;
+            const postponedGroup = document.getElementById('postponedDateGroup');
+            const reasonGroup = document.getElementById('reasonGroup');
+            const reasonArabicGroup = document.getElementById('reasonArabicGroup');
+
+            if (status === 'Postponed') {
+                postponedGroup.style.display = 'block';
+                reasonGroup.style.display = 'block';
+                reasonArabicGroup.style.display = 'block';
+            } else if (status === 'Failed' || status === 'On Hold') {
+                postponedGroup.style.display = 'none';
+                reasonGroup.style.display = 'block';
+                reasonArabicGroup.style.display = 'block';
+            } else {
+                postponedGroup.style.display = 'none';
+                reasonGroup.style.display = 'none';
+                reasonArabicGroup.style.display = 'none';
+            }
+        }
+
+        // Handle form submission
+        document.getElementById('statusForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const deliveryId = document.getElementById('deliveryId').value;
+            const status = document.getElementById('newStatus').value;
+            const failureReason = document.getElementById('failureReason').value;
+            const failureReasonArabic = document.getElementById('failureReasonArabic').value;
+            const postponedDate = document.getElementById('postponedDate').value;
+
+            const payload = {
+                status,
+                failureReason,
+                failureReasonArabic,
+                postponedDate: postponedDate || undefined,
+                updatedBy: 'Admin'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/deliveries/${deliveryId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ Delivery updated successfully!\n${data.data.notification.sent ? 'WhatsApp notification sent!' : 'Failed to send notification'}`);
+                    closeModal();
+                    loadDeliveries();
+                    loadStats();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error updating delivery:', error);
+                alert('❌ Error updating delivery. Please try again.');
+            }
+        });
+
+        // Initialize
+        loadStats();
+        loadDeliveries();
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            loadStats();
+            loadDeliveries();
+        }, 30000);
+
+        // Filter change handler
+        document.getElementById('statusFilter')?.addEventListener('change', loadDeliveries);
+    </script>
+</body>
+</html>
+
+
+
+

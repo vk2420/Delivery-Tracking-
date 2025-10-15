@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Delivery Management Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .filters {
+            background: #f8f9fa;
+            padding: 25px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+
+        .filter-group select, .filter-group input {
+            padding: 8px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s;
+        }
+
+        .filter-group select:focus, .filter-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 25px;
+            background: #f8f9fa;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border-left: 4px solid #007bff;
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .table-container {
+            padding: 25px;
+            overflow-x: auto;
+        }
+
+        .deliveries-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .deliveries-table th {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .deliveries-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: top;
+        }
+
+        .deliveries-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-out { background: #fff3cd; color: #856404; }
+        .status-delivered { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .status-postponed { background: #d1ecf1; color: #0c5460; }
+        .status-rts { background: #f5c6cb; color: #721c24; }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .remarks-section {
+            max-width: 300px;
+        }
+
+        .remarks-list {
+            max-height: 100px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .remark-item {
+            margin-bottom: 5px;
+            padding: 4px 8px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #007bff;
+        }
+
+        .remark-meta {
+            font-size: 0.7rem;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+
+        .add-remark {
+            margin-top: 8px;
+        }
+
+        .add-remark input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
+        .add-remark select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
+        .rts-section {
+            font-size: 0.8rem;
+        }
+
+        .rts-status {
+            padding: 3px 6px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .rts-not-applicable { background: #e9ecef; color: #6c757d; }
+        .rts-returned { background: #f8d7da; color: #721c24; }
+        .rts-received { background: #d4edda; color: #155724; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-group {
+                width: 100%;
+            }
+            
+            .deliveries-table {
+                font-size: 0.8rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚚 Enhanced Delivery Management Dashboard</h1>
+            <p>Track, manage, and update delivery statuses with advanced filtering and remark system</p>
+        </div>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label for="conceptFilter">Concept:</label>
+                <select id="conceptFilter">
+                    <option value="">All Concepts</option>
+                    <option value="Homebox">Homebox</option>
+                    <option value="Homecenter">Homecenter</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="clusterFilter">Cluster:</label>
+                <select id="clusterFilter">
+                    <option value="">All Clusters</option>
+                    <option value="Jeddah">Jeddah</option>
+                    <option value="Al Baha">Al Baha</option>
+                    <option value="Madina">Madina</option>
+                    <option value="Makkah">Makkah</option>
+                    <option value="Taif">Taif</option>
+                    <option value="Yanbu">Yanbu</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="statusFilter">Status:</label>
+                <select id="statusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="Out for Delivery">Out for Delivery</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Postponed">Postponed</option>
+                    <option value="Replacement Scheduled">Replacement Scheduled</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="searchInput">Search:</label>
+                <input type="text" id="searchInput" placeholder="Invoice, Customer, Driver...">
+            </div>
+            
+            <div class="filter-group">
+                <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                <button class="btn btn-secondary" onclick="clearFilters()">Clear All</button>
+            </div>
+        </div>
+
+        <div class="stats" id="statsContainer">
+            <div class="stat-card">
+                <h3 id="totalDeliveries">0</h3>
+                <p>Total Deliveries</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="outForDelivery">0</h3>
+                <p>Out for Delivery</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="delivered">0</h3>
+                <p>Delivered</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="failed">0</h3>
+                <p>Failed</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="postponed">0</h3>
+                <p>Postponed</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="rts">0</h3>
+                <p>Returned to Store</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div id="loadingMessage" class="loading">
+                <p>Loading deliveries...</p>
+            </div>
+            
+            <div id="errorMessage" class="error" style="display: none;">
+                <p>Error loading deliveries. Please try again.</p>
+            </div>
+            
+            <div id="successMessage" class="success" style="display: none;">
+                <p>Operation completed successfully!</p>
+            </div>
+            
+            <table class="deliveries-table" id="deliveriesTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Invoice No.</th>
+                        <th>Customer</th>
+                        <th>Driver</th>
+                        <th>Cluster/Concept</th>
+                        <th>Status</th>
+                        <th>Shift</th>
+                        <th>Remarks</th>
+                        <th>RTS Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="deliveriesTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="remarkModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%;">
+            <h3>Add Remark</h3>
+            <div style="margin: 15px 0;">
+                <label>Remark Type:</label>
+                <select id="remarkType" style="width: 100%; padding: 8px; margin: 5px 0;">
+                    <option value="General">General</option>
+                    <option value="Postponed">Postponed</option>
+                    <option value="Failed">Failed</option>
+                    <option value="RTS">Return to Store</option>
+                    <option value="Replacement">Replacement</option>
+                </select>
+            </div>
+            <div style="margin: 15px 0;">
+                <label>Remark:</label>
+                <textarea id="remarkText" placeholder="Enter your remark..." style="width: 100%; padding: 8px; margin: 5px 0; height: 80px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+            </div>
+            <div style="margin: 15px 0;">
+                <label>Added By:</label>
+                <input type="text" id="remarkAddedBy" placeholder="Your name" style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeRemarkModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRemark()">Save Remark</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%;">
+            <h3 id="statusModalTitle">Update Status</h3>
+            <div id="statusModalContent">
+                <!-- Dynamic content based on action -->
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeStatusModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveStatusUpdate()">Update Status</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allDeliveries = [];
+        let filteredDeliveries = [];
+        let currentDeliveryId = null;
+
+        // Load deliveries on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDeliveries();
+        });
+
+        async function loadDeliveries() {
+            try {
+                const response = await fetch('/api/enhanced-deliveries');
+                if (!response.ok) throw new Error('Failed to load deliveries');
+                
+                allDeliveries = await response.json();
+                filteredDeliveries = [...allDeliveries];
+                renderDeliveries();
+                updateStats();
+                hideLoading();
+            } catch (error) {
+                console.error('Error loading deliveries:', error);
+                showError('Failed to load deliveries. Please try again.');
+            }
+        }
+
+        function renderDeliveries() {
+            const tbody = document.getElementById('deliveriesTableBody');
+            tbody.innerHTML = '';
+
+            if (filteredDeliveries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #6c757d;">No deliveries found</td></tr>';
+                return;
+            }
+
+            filteredDeliveries.forEach(delivery => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${delivery.invoiceNo || 'N/A'}</td>
+                    <td>
+                        <strong>${delivery.customerName || 'N/A'}</strong><br>
+                        <small>${delivery.customerPhone || 'N/A'}</small>
+                    </td>
+                    <td>
+                        <strong>${delivery.driverName || 'N/A'}</strong><br>
+                        <small>${delivery.driverPhone || 'N/A'}</small>
+                    </td>
+                    <td>
+                        <strong>${delivery.cluster || 'Unknown'}</strong><br>
+                        <small>${delivery.concept || 'Unknown'}</small>
+                    </td>
+                    <td><span class="status-badge status-${delivery.status.toLowerCase().replace(' ', '-')}">${delivery.status}</span></td>
+                    <td>${delivery.shift || 'N/A'}</td>
+                    <td class="remarks-section">
+                        <div class="remarks-list" id="remarks-${delivery._id}">
+                            ${renderRemarks(delivery.remarks || [])}
+                        </div>
+                        <div class="add-remark">
+                            <button class="btn btn-info" onclick="openRemarkModal('${delivery._id}')" style="font-size: 0.7rem; padding: 4px 8px;">Add Remark</button>
+                        </div>
+                    </td>
+                    <td class="rts-section">
+                        <div class="rts-status rts-${(delivery.rtsStatus || 'not-applicable').toLowerCase().replace(' ', '-')}">
+                            ${delivery.rtsStatus || 'Not Applicable'}
+                        </div>
+                        ${delivery.rtsReason ? `<small>${delivery.rtsReason}</small>` : ''}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-success" onclick="updateStatus('${delivery._id}', 'Delivered')" title="Mark as Delivered">✅</button>
+                            <button class="btn btn-danger" onclick="updateStatus('${delivery._id}', 'Failed')" title="Mark as Failed">❌</button>
+                            <button class="btn btn-warning" onclick="updateStatus('${delivery._id}', 'Postponed')" title="Postpone">📅</button>
+                            <button class="btn btn-info" onclick="updateStatus('${delivery._id}', 'Replacement Scheduled')" title="Replacement">🔄</button>
+                            <button class="btn btn-secondary" onclick="updateRTS('${delivery._id}')" title="Return to Store">📦</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('deliveriesTable').style.display = 'table';
+        }
+
+        function renderRemarks(remarks) {
+            if (!remarks || remarks.length === 0) {
+                return '<div style="color: #6c757d; font-style: italic;">No remarks</div>';
+            }
+            
+            return remarks.map(remark => `
+                <div class="remark-item">
+                    <strong>${remark.remarkType}:</strong> ${remark.remark}
+                    <div class="remark-meta">By ${remark.addedBy} on ${new Date(remark.addedAt).toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            const stats = {
+                total: filteredDeliveries.length,
+                outForDelivery: filteredDeliveries.filter(d => d.status === 'Out for Delivery').length,
+                delivered: filteredDeliveries.filter(d => d.status === 'Delivered').length,
+                failed: filteredDeliveries.filter(d => d.status === 'Failed').length,
+                postponed: filteredDeliveries.filter(d => d.status === 'Postponed').length,
+                rts: filteredDeliveries.filter(d => d.rtsStatus === 'Returned to Store').length
+            };
+
+            document.getElementById('totalDeliveries').textContent = stats.total;
+            document.getElementById('outForDelivery').textContent = stats.outForDelivery;
+            document.getElementById('delivered').textContent = stats.delivered;
+            document.getElementById('failed').textContent = stats.failed;
+            document.getElementById('postponed').textContent = stats.postponed;
+            document.getElementById('rts').textContent = stats.rts;
+        }
+
+        function applyFilters() {
+            const conceptFilter = document.getElementById('conceptFilter').value;
+            const clusterFilter = document.getElementById('clusterFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredDeliveries = allDeliveries.filter(delivery => {
+                const conceptMatch = !conceptFilter || delivery.concept === conceptFilter;
+                const clusterMatch = !clusterFilter || delivery.cluster === clusterFilter;
+                const statusMatch = !statusFilter || delivery.status === statusFilter;
+                const searchMatch = !searchTerm || 
+                    (delivery.invoiceNo && delivery.invoiceNo.toLowerCase().includes(searchTerm)) ||
+                    (delivery.customerName && delivery.customerName.toLowerCase().includes(searchTerm)) ||
+                    (delivery.driverName && delivery.driverName.toLowerCase().includes(searchTerm));
+
+                return conceptMatch && clusterMatch && statusMatch && searchMatch;
+            });
+
+            renderDeliveries();
+            updateStats();
+        }
+
+        function clearFilters() {
+            document.getElementById('conceptFilter').value = '';
+            document.getElementById('clusterFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            filteredDeliveries = [...allDeliveries];
+            renderDeliveries();
+            updateStats();
+        }
+
+        function openRemarkModal(deliveryId) {
+            currentDeliveryId = deliveryId;
+            document.getElementById('remarkModal').style.display = 'block';
+        }
+
+        function closeRemarkModal() {
+            document.getElementById('remarkModal').style.display = 'none';
+            currentDeliveryId = null;
+        }
+
+        async function saveRemark() {
+            const remarkType = document.getElementById('remarkType').value;
+            const remarkText = document.getElementById('remarkText').value;
+            const addedBy = document.getElementById('remarkAddedBy').value;
+
+            if (!remarkText.trim() || !addedBy.trim()) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/enhanced-deliveries/${currentDeliveryId}/remarks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        remark: remarkText,
+                        addedBy: addedBy,
+                        remarkType: remarkType
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to save remark');
+                
+                showSuccess('Remark added successfully!');
+                closeRemarkModal();
+                loadDeliveries(); // Reload to show updated remarks
+            } catch (error) {
+                console.error('Error saving remark:', error);
+                alert('Failed to save remark. Please try again.');
+            }
+        }
+
+        function updateStatus(deliveryId, status) {
+            currentDeliveryId = deliveryId;
+            const delivery = allDeliveries.find(d => d._id === deliveryId);
+            
+            document.getElementById('statusModalTitle').textContent = `Update Status to ${status}`;
+            
+            let content = '';
+            if (status === 'Failed') {
+                content = `
+                    <div style="margin: 15px 0;">
+                        <label>Failure Reason:</label>
+                        <select id="failureReason" style="width: 100%; padding: 8px; margin: 5px 0;">
+                            <option value="Customer not available">Customer not available</option>
+                            <option value="Wrong address">Wrong address</option>
+                            <option value="Customer refused">Customer refused</option>
+                            <option value="Item damaged">Item damaged</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                `;
+            } else if (status === 'Postponed') {
+                content = `
+                    <div style="margin: 15px 0;">
+                        <label>New Date:</label>
+                        <input type="date" id="postponedDate" style="width: 100%; padding: 8px; margin: 5px 0;">
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <label>Reason:</label>
+                        <input type="text" id="postponedReason" placeholder="Reason for postponement" style="width: 100%; padding: 8px; margin: 5px 0;">
+                    </div>
+                `;
+            }
+            
+            document.getElementById('statusModalContent').innerHTML = content;
+            document.getElementById('statusModal').style.display = 'block';
+        }
+
+        function closeStatusModal() {
+            document.getElementById('statusModal').style.display = 'none';
+            currentDeliveryId = null;
+        }
+
+        async function saveStatusUpdate() {
+            const status = document.getElementById('statusModalTitle').textContent.replace('Update Status to ', '');
+            
+            let updateData = { status };
+            
+            if (status === 'Failed') {
+                updateData.failureReason = document.getElementById('failureReason').value;
+            } else if (status === 'Postponed') {
+                updateData.postponedDate = document.getElementById('postponedDate').value;
+                updateData.postponedReason = document.getElementById('postponedReason').value;
+            }
+
+            try {
+                const response = await fetch(`/api/enhanced-deliveries/${currentDeliveryId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (!response.ok) throw new Error('Failed to update status');
+                
+                showSuccess('Status updated successfully!');
+                closeStatusModal();
+                loadDeliveries();
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Failed to update status. Please try again.');
+            }
+        }
+
+        function updateRTS(deliveryId) {
+            currentDeliveryId = deliveryId;
+            
+            document.getElementById('statusModalTitle').textContent = 'Update RTS Status';
+            document.getElementById('statusModalContent').innerHTML = `
+                <div style="margin: 15px 0;">
+                    <label>RTS Status:</label>
+                    <select id="rtsStatus" style="width: 100%; padding: 8px; margin: 5px 0;">
+                        <option value="Not Applicable">Not Applicable</option>
+                        <option value="Returned to Store">Returned to Store</option>
+                        <option value="Warehouse Received">Warehouse Received</option>
+                    </select>
+                </div>
+                <div style="margin: 15px 0;">
+                    <label>RTS Reason:</label>
+                    <input type="text" id="rtsReason" placeholder="Reason for return" style="width: 100%; padding: 8px; margin: 5px 0;">
+                </div>
+                <div style="margin: 15px 0;">
+                    <label>RTS Date:</label>
+                    <input type="date" id="rtsDate" style="width: 100%; padding: 8px; margin: 5px 0;">
+                </div>
+            `;
+            document.getElementById('statusModal').style.display = 'block';
+        }
+
+        async function saveStatusUpdate() {
+            const title = document.getElementById('statusModalTitle').textContent;
+            
+            if (title === 'Update RTS Status') {
+                const updateData = {
+                    rtsStatus: document.getElementById('rtsStatus').value,
+                    rtsReason: document.getElementById('rtsReason').value,
+                    rtsDate: document.getElementById('rtsDate').value
+                };
+
+                try {
+                    const response = await fetch(`/api/enhanced-deliveries/${currentDeliveryId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+
+                    if (!response.ok) throw new Error('Failed to update RTS status');
+                    
+                    showSuccess('RTS status updated successfully!');
+                    closeStatusModal();
+                    loadDeliveries();
+                } catch (error) {
+                    console.error('Error updating RTS status:', error);
+                    alert('Failed to update RTS status. Please try again.');
+                }
+            } else {
+                // Regular status update logic (existing code)
+                const status = title.replace('Update Status to ', '');
+                
+                let updateData = { status };
+                
+                if (status === 'Failed') {
+                    updateData.failureReason = document.getElementById('failureReason').value;
+                } else if (status === 'Postponed') {
+                    updateData.postponedDate = document.getElementById('postponedDate').value;
+                    updateData.postponedReason = document.getElementById('postponedReason').value;
+                }
+
+                try {
+                    const response = await fetch(`/api/enhanced-deliveries/${currentDeliveryId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+
+                    if (!response.ok) throw new Error('Failed to update status');
+                    
+                    showSuccess('Status updated successfully!');
+                    closeStatusModal();
+                    loadDeliveries();
+                } catch (error) {
+                    console.error('Error updating status:', error);
+                    alert('Failed to update status. Please try again.');
+                }
+            }
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingMessage').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('errorMessage').style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            document.getElementById('successMessage').textContent = message;
+            document.getElementById('successMessage').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('successMessage').style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
