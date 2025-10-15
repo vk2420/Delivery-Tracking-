@@ -13,8 +13,10 @@ import {
   Building,
   MessageSquare,
   RotateCcw,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { 
   getDeliveries, 
   getDeliveryStats, 
@@ -108,6 +110,47 @@ const Dashboard: React.FC = () => {
       setLoading(false);
     }
   }, [statusFilter, driverFilter, dateFilter, clusterFilter, conceptFilter]);
+
+  // Excel Export Function
+  const exportToExcel = () => {
+    const filteredDeliveries = deliveries.filter(delivery => {
+      const matchesSearch = !searchTerm || 
+        delivery.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        delivery.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        delivery.driverId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        delivery.driverPhone?.includes(searchTerm);
+      
+      const matchesStatus = !statusFilter || delivery.status === statusFilter;
+      const matchesDriver = !driverFilter || delivery.driverId?._id === driverFilter;
+      const matchesCluster = !clusterFilter || delivery.cluster === clusterFilter;
+      const matchesConcept = !conceptFilter || delivery.concept === conceptFilter;
+      const matchesDate = !dateFilter || delivery.date === dateFilter;
+      
+      return matchesSearch && matchesStatus && matchesDriver && matchesCluster && matchesConcept && matchesDate;
+    });
+
+    const exportData = filteredDeliveries.map(delivery => ({
+      'DO Number': delivery.doNumber,
+      'Customer Name': delivery.customerName,
+      'Phone': delivery.customerPhone,
+      'Address': delivery.address,
+      'Driver Name': delivery.driverId?.name || delivery.driverName || 'N/A',
+      'Driver Phone': delivery.driverId?.phone || delivery.driverPhone || 'N/A',
+      'Status': delivery.status,
+      'Date': delivery.date,
+      'Cluster': delivery.cluster,
+      'Concept': delivery.concept,
+      'Remarks': delivery.reason || delivery.remarks || 'N/A',
+      'RTS Status': delivery.rtsStatus || 'N/A'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Deliveries');
+    
+    const fileName = `deliveries_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
 
   useEffect(() => {
     loadData();
@@ -420,7 +463,14 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-end gap-3 mt-4">
+          <button
+            onClick={exportToExcel}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Excel
+          </button>
           <button
             onClick={loadData}
             disabled={loading}
