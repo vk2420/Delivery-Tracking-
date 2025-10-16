@@ -54,11 +54,6 @@ router.post('/upload', upload.single('tripSheet'), async (req, res) => {
     // Read the uploaded file
     const fileBuffer = fs.readFileSync(req.file.path);
     
-    // Save a copy for debugging
-    const debugPath = path.join(__dirname, '..', 'uploads', `debug_${Date.now()}.pdf`);
-    fs.copyFileSync(req.file.path, debugPath);
-    console.log('🔍 Saved debug copy:', debugPath);
-    
     // Parse the PDF using AI-powered parser
     console.log('🤖 Using AI-powered PDF parser...');
     console.log('📄 File size:', fileBuffer.length, 'bytes');
