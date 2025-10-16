@@ -3,14 +3,7 @@ const router = express.Router();
 const Delivery = require('../models/Delivery');
 const Customer = require('../models/Customer');
 const Driver = require('../models/Driver');
-const { whatsappWebService } = require('../utils/whatsappWeb');
-const {
-  generateFailedDeliveryMessage,
-  generatePostponedDeliveryMessage,
-  generateReplacementMessage,
-  generateDeliveredMessage,
-  generateOnHoldMessage
-} = require('../utils/notificationMessages');
+// No WhatsApp functionality - removed all WhatsApp imports
 
 /**
  * Update delivery status and send automatic WhatsApp notification
@@ -47,21 +40,11 @@ router.patch('/:id/status', async (req, res) => {
       updatedBy: updatedBy || 'System'
     });
 
-    let whatsappMessage = null;
-    let shouldSendMessage = true;
-
     // Handle different status updates
     switch (status) {
       case 'Not Delivered':
         delivery.failureReason = failureReason || 'Delivery attempt unsuccessful';
         delivery.failureReasonArabic = failureReasonArabic || 'محاولة التوصيل غير ناجحة';
-        
-        whatsappMessage = generateFailedDeliveryMessage(
-          delivery.invoiceNo,
-          delivery.failureReason,
-          delivery.failureReasonArabic,
-          delivery.startTime || new Date()
-        );
         break;
 
       case 'Postponed':
@@ -73,15 +56,6 @@ router.patch('/:id/status', async (req, res) => {
         }
         delivery.postponedDate = postponedDate;
         delivery.failureReason = failureReason;
-        
-        whatsappMessage = generatePostponedDeliveryMessage(
-          delivery.invoiceNo,
-          postponedDate,
-          delivery.shift,
-          delivery.driverId.name,
-          delivery.driverId.phone,
-          failureReason
-        );
         break;
 
       case 'Replacement Scheduled':
@@ -92,74 +66,26 @@ router.patch('/:id/status', async (req, res) => {
           });
         }
         delivery.replacementDetails = replacementDetails;
-        
-        whatsappMessage = generateReplacementMessage(
-          delivery.invoiceNo,
-          replacementDetails.pickupDate,
-          replacementDetails.deliveryDate,
-          delivery.shift,
-          delivery.driverId.name,
-          delivery.driverId.phone,
-          replacementDetails.itemDescription
-        );
         break;
 
       case 'Delivered':
         delivery.deliveredAt = new Date();
-        
-        whatsappMessage = generateDeliveredMessage(
-          delivery.invoiceNo,
-          delivery.deliveredAt,
-          delivery.driverId.name
-        );
         break;
 
       case 'On Hold':
         delivery.failureReason = onHoldReason || 'On hold as per request';
-        
-        whatsappMessage = generateOnHoldMessage(
-          delivery.invoiceNo,
-          onHoldReason || 'As per your request',
-          delivery.startTime || new Date()
-        );
         break;
 
       case 'Cancelled':
-        // Don't send message for cancelled deliveries
-        shouldSendMessage = false;
+        // Cancelled status
         break;
 
       default:
-        shouldSendMessage = false;
+        break;
     }
 
     // Save delivery
     await delivery.save();
-
-    // Send WhatsApp notification
-    let messageSent = false;
-    let messageError = null;
-
-    if (shouldSendMessage && whatsappMessage && delivery.customerId.phone1) {
-      try {
-        console.log(`📤 Sending ${status} notification to ${delivery.customerId.phone1}`);
-        const result = await whatsappWebService.sendMessageWithRetry(
-          delivery.customerId.phone1,
-          whatsappMessage
-        );
-
-        if (result.success) {
-          messageSent = true;
-          console.log(`✅ ${status} notification sent successfully to ${delivery.customerId.phone1}`);
-        } else {
-          messageError = result.error;
-          console.error(`❌ Failed to send ${status} notification:`, result.error);
-        }
-      } catch (error) {
-        messageError = error.message;
-        console.error(`❌ Error sending ${status} notification:`, error);
-      }
-    }
 
     res.json({
       success: true,
@@ -173,10 +99,6 @@ router.patch('/:id/status', async (req, res) => {
           customerName: delivery.customerId.name,
           customerPhone: delivery.customerId.phone1,
           driverName: delivery.driverId.name
-        },
-        notification: {
-          sent: messageSent,
-          error: messageError
         }
       }
     });

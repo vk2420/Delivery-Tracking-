@@ -3,12 +3,7 @@ const Delivery = require('../models/Delivery');
 const Customer = require('../models/Customer');
 const Driver = require('../models/Driver');
 const { generateCRMNumber } = require('../utils/crm');
-const { 
-  sendWhatsAppMessage, 
-  generateDeliveryMessage, 
-  generateNotDeliveredMessage, 
-  generateDamageCaseMessage 
-} = require('../utils/whatsapp');
+// No WhatsApp functionality - removed all WhatsApp imports
 
 const router = express.Router();
 

@@ -3,8 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { parseTripSheetWithAI } = require('../utils/aiPdfParser');
-const { generateDeliveryMessage } = require('../utils/whatsapp');
-// No WhatsApp functionality - system runs without messaging
+// No WhatsApp functionality - removed all WhatsApp imports
 const Driver = require('../models/Driver');
 const Customer = require('../models/Customer');
 const Delivery = require('../models/Delivery');
