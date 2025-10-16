@@ -34,15 +34,22 @@ const connectDB = async () => {
 
 // For Vercel serverless deployment - connect to DB before handling requests
 if (process.env.VERCEL) {
+  console.log('🔵 Running in Vercel environment');
+  console.log('🔵 MongoDB URI exists:', !!process.env.MONGODB_URI);
+  
   app.use(async (req, res, next) => {
     try {
+      console.log(`📥 Request: ${req.method} ${req.path}`);
       await connectDB();
+      console.log('✅ DB Connected for request');
       next();
     } catch (error) {
+      console.error('❌ Database connection failed:', error);
       res.status(500).json({ 
         success: false,
         error: 'Database connection failed',
-        details: error.message 
+        details: error.message,
+        uri_exists: !!process.env.MONGODB_URI
       });
     }
   });
@@ -80,7 +87,8 @@ app.use('/api/driver', driverAppRoutes); // Driver mobile app routes
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-  console.error('Error:', error);
+  console.error('❌ Error caught:', error);
+  console.error('❌ Error stack:', error.stack);
   
   if (error.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
@@ -93,7 +101,8 @@ app.use((error, req, res, next) => {
   res.status(500).json({ 
     success: false,
     error: 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+    details: error.message,
+    stack: process.env.VERCEL ? error.stack : undefined
   });
 });
 
