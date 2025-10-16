@@ -13,9 +13,14 @@ const TripSheet = require('../models/TripSheet');
 const router = express.Router();
 
 // Configure multer for file uploads
+// Use /tmp for Vercel serverless, uploads/ for local
+const getUploadDir = () => {
+  return process.env.VERCEL ? '/tmp/' : 'uploads/';
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads/';
+    const uploadDir = getUploadDir();
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }

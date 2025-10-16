@@ -16,57 +16,6 @@ const driverAppRoutes = require('./routes/driverApp'); // Driver mobile app rout
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Serve admin interface
-app.use('/admin', express.static(path.join(__dirname, 'public')));
-
-// Routes
-app.use('/api/upload', uploadRoutes);
-app.use('/api/deliveries', deliveryStatusRoutes); // Enhanced delivery routes with status updates
-app.use('/api/enhanced-deliveries', enhancedDeliveryRoutes); // New enhanced delivery routes
-app.use('/api/drivers', driverRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/driver', driverAppRoutes); // Driver mobile app routes
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Delivery Portal API is running',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Error:', error);
-  
-  if (error.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
-  }
-  
-  if (error.message === 'Only PDF files are allowed') {
-    return res.status(400).json({ error: 'Only PDF files are allowed' });
-  }
-  
-  res.status(500).json({ 
-    error: 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
 // Connect to MongoDB
 const connectDB = async () => {
   if (mongoose.connection.readyState === 0) {
@@ -83,17 +32,82 @@ const connectDB = async () => {
   }
 };
 
-// For Vercel serverless deployment
+// For Vercel serverless deployment - connect to DB before handling requests
 if (process.env.VERCEL) {
-  // Connect to MongoDB on each request (Vercel serverless)
   app.use(async (req, res, next) => {
     try {
       await connectDB();
       next();
     } catch (error) {
-      res.status(500).json({ error: 'Database connection failed' });
+      res.status(500).json({ 
+        success: false,
+        error: 'Database connection failed',
+        details: error.message 
+      });
     }
   });
+}
+
+// Middleware
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve admin interface
+app.use('/admin', express.static(path.join(__dirname, 'public')));
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Delivery Portal API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.VERCEL ? 'Vercel' : 'Local',
+    mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+  });
+});
+
+// Routes
+app.use('/api/upload', uploadRoutes);
+app.use('/api/deliveries', deliveryStatusRoutes); // Enhanced delivery routes with status updates
+app.use('/api/enhanced-deliveries', enhancedDeliveryRoutes); // New enhanced delivery routes
+app.use('/api/drivers', driverRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/driver', driverAppRoutes); // Driver mobile app routes
+
+// Error handling middleware
+app.use((error, req, res, next) => {
+  console.error('Error:', error);
+  
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+  }
+  
+  if (error.message === 'Only PDF files are allowed') {
+    return res.status(400).json({ error: 'Only PDF files are allowed' });
+  }
+  
+  res.status(500).json({ 
+    success: false,
+    error: 'Internal server error',
+    details: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+  });
+});
+
+// 404 handler (must be last)
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    success: false,
+    error: 'Route not found',
+    path: req.originalUrl 
+  });
+});
+
+// For Vercel serverless deployment
+if (process.env.VERCEL) {
   module.exports = app;
 } else {
   // For local development - start server normally
@@ -129,4 +143,3 @@ if (process.env.VERCEL) {
 
   startServer();
 }
-
