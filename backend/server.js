@@ -67,54 +67,66 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Connect to MongoDB and start server
-const startServer = async () => {
-  try {
-    await mongoose.connect(config.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    
-    console.log('✅ Connected to MongoDB');
-    
-  // No WhatsApp functionality - system runs without messaging
-  console.log('🚫 No WhatsApp functionality - system runs without messaging');
-    
-    app.listen(config.PORT, () => {
-      console.log(`🚀 Server running on port ${config.PORT}`);
-      console.log(`📊 Health check: http://localhost:${config.PORT}/api/health`);
-      console.log(`📁 Upload endpoint: http://localhost:${config.PORT}/api/upload/upload`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+// Connect to MongoDB
+const connectDB = async () => {
+  if (mongoose.connection.readyState === 0) {
+    try {
+      await mongoose.connect(config.MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      console.log('✅ Connected to MongoDB');
+    } catch (error) {
+      console.error('❌ MongoDB connection error:', error);
+      throw error;
+    }
   }
 };
 
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down server...');
-  try {
-    await whatsappWebService.destroy();
-    console.log('✅ WhatsApp Web disconnected');
-  } catch (error) {
-    console.error('⚠️ Error disconnecting WhatsApp Web:', error.message);
-  }
-  await mongoose.connection.close();
-  process.exit(0);
-});
+// For Vercel serverless deployment
+if (process.env.VERCEL) {
+  // Connect to MongoDB on each request (Vercel serverless)
+  app.use(async (req, res, next) => {
+    try {
+      await connectDB();
+      next();
+    } catch (error) {
+      res.status(500).json({ error: 'Database connection failed' });
+    }
+  });
+  module.exports = app;
+} else {
+  // For local development - start server normally
+  const startServer = async () => {
+    try {
+      await connectDB();
+      
+      console.log('🚫 No WhatsApp functionality - system runs without messaging');
+      
+      app.listen(config.PORT, () => {
+        console.log(`🚀 Server running on port ${config.PORT}`);
+        console.log(`📊 Health check: http://localhost:${config.PORT}/api/health`);
+        console.log(`📁 Upload endpoint: http://localhost:${config.PORT}/api/upload/upload`);
+      });
+    } catch (error) {
+      console.error('❌ Failed to start server:', error);
+      process.exit(1);
+    }
+  };
 
-process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down server...');
-  try {
-    await whatsappWebService.destroy();
-    console.log('✅ WhatsApp Web disconnected');
-  } catch (error) {
-    console.error('⚠️ Error disconnecting WhatsApp Web:', error.message);
-  }
-  await mongoose.connection.close();
-  process.exit(0);
-});
+  // Handle graceful shutdown
+  process.on('SIGINT', async () => {
+    console.log('\n🛑 Shutting down server...');
+    await mongoose.connection.close();
+    process.exit(0);
+  });
 
-startServer();
+  process.on('SIGTERM', async () => {
+    console.log('\n🛑 Shutting down server...');
+    await mongoose.connection.close();
+    process.exit(0);
+  });
+
+  startServer();
+}
 
