@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
+const config = require('../config');
 require('dotenv').config();
 
 const admins = [
@@ -12,7 +13,7 @@ const admins = [
 
 async function initAdmins() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(config.MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 
     for (const adminData of admins) {

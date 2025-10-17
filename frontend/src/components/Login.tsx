@@ -17,7 +17,11 @@ const Login: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const API_URL = process.env.NODE_ENV === 'production' 
+        ? '/api' 
+        : (process.env.REACT_APP_API_URL || 'http://localhost:3001/api');
+      
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

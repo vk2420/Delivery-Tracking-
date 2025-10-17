@@ -72,9 +72,12 @@ const Navigation: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
+  const location = useLocation();
+  const hideNavigation = location.pathname === '/login';
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
+      {!hideNavigation && <Navigation />}
       <main>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -99,7 +102,7 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppContent />
       </Router>
     </AuthProvider>
