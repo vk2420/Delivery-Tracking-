@@ -121,6 +121,8 @@ router.get('/', async (req, res) => {
   try {
     const { status, driverId, date, cluster, concept } = req.query;
     
+    console.log('🔍 Filter params:', { status, driverId, date, cluster, concept });
+    
     let filter = {};
     
     if (status) {
@@ -145,7 +147,10 @@ router.get('/', async (req, res) => {
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
       filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
+      console.log('📅 Date filter:', { startOfDay, endOfDay });
     }
+    
+    console.log('🔍 Final filter:', filter);
 
     const deliveries = await Delivery.find(filter)
       .populate('customerId')
