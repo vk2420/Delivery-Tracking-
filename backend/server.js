@@ -7,6 +7,7 @@ const config = require('./config');
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const setupRoutes = require('./routes/setup');
 const uploadRoutes = require('./routes/upload');
 const deliveryRoutes = require('./routes/deliveries');
 const deliveryStatusRoutes = require('./routes/deliveryStatus');
@@ -80,6 +81,7 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes.router);
+app.use('/api/setup', setupRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/deliveries', deliveryStatusRoutes); // Enhanced delivery routes with status updates
 app.use('/api/enhanced-deliveries', enhancedDeliveryRoutes); // New enhanced delivery routes
