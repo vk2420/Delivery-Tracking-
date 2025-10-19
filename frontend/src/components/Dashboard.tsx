@@ -124,7 +124,18 @@ const Dashboard: React.FC = () => {
       const matchesDriver = !driverFilter || delivery.driverId?._id === driverFilter;
       const matchesCluster = !clusterFilter || delivery.cluster === clusterFilter;
       const matchesConcept = !conceptFilter || delivery.concept === conceptFilter;
-      const matchesDate = !dateFilter || delivery.date === dateFilter;
+      
+      // Fix date filtering - compare date strings properly
+      let matchesDate = true;
+      if (dateFilter) {
+        const deliveryDate = delivery.date || delivery.createdAt;
+        if (deliveryDate) {
+          const deliveryDateStr = new Date(deliveryDate).toISOString().split('T')[0];
+          matchesDate = deliveryDateStr === dateFilter;
+        } else {
+          matchesDate = false;
+        }
+      }
       
       return matchesSearch && matchesStatus && matchesDriver && matchesCluster && matchesConcept && matchesDate;
     });
@@ -602,7 +613,7 @@ const Dashboard: React.FC = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
                         {/* Show failure reason for Not Delivered status */}
                         {delivery.status === 'Not Delivered' && delivery.reason && (
@@ -612,23 +623,21 @@ const Dashboard: React.FC = () => {
                           </div>
                         )}
                         
-                        {/* Show regular remarks */}
+                        {/* Show regular remarks - scrollable list */}
                         {delivery.remarks && delivery.remarks.length > 0 ? (
-                          <div className="max-w-xs">
-                            {delivery.remarks.slice(-2).map((remark: Remark, index: number) => (
-                              <div key={index} className="text-xs bg-gray-100 p-1 rounded mb-1">
-                                <div className="font-medium">{remark.addedBy}</div>
-                                <div className="text-gray-600">{remark.remark}</div>
-                                <div className="text-gray-400 text-xs">
-                                  {new Date(remark.addedAt).toLocaleDateString()}
+                          <div className="max-w-xs max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
+                            {delivery.remarks.slice().reverse().map((remark: Remark, index: number) => (
+                              <div key={index} className="text-xs bg-gray-100 p-2 rounded mb-1 border-l-2 border-blue-500">
+                                <div className="font-medium text-gray-800">{remark.addedBy}</div>
+                                <div className="text-gray-600 mt-1">{remark.remark}</div>
+                                <div className="text-gray-400 text-xs mt-1">
+                                  {new Date(remark.addedAt).toLocaleString()}
                                 </div>
                               </div>
                             ))}
-                            {delivery.remarks.length > 2 && (
-                              <div className="text-xs text-gray-500">
-                                +{delivery.remarks.length - 2} more
-                              </div>
-                            )}
+                            <div className="text-xs text-gray-500 mt-1 sticky bottom-0 bg-white py-1">
+                              Total: {delivery.remarks.length} remark{delivery.remarks.length !== 1 ? 's' : ''}
+                            </div>
                           </div>
                         ) : (
                           <span className="text-gray-400 text-xs">No remarks</span>
