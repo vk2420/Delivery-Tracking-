@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build && cd .. && mkdir -p public && cp -r frontend/build/* public/",
+  "buildCommand": "cd backend && npm install && cd ../frontend && npm install && npm run build && cd .. && mkdir -p public && cp -r frontend/build/* public/",
   "outputDirectory": "public",
   "functions": {
     "api/**/*.js": {
