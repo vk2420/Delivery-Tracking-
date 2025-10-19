@@ -1,26 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { Truck, Upload, BarChart3, Smartphone, LogOut } from 'lucide-react';
+import { Truck, Upload, BarChart3, Smartphone } from 'lucide-react';
 import UploadTripSheet from './components/UploadTripSheet';
 import Dashboard from './components/Dashboard';
 import DriverApp from './components/DriverApp';
-import Login from './components/Login';
-import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 const Navigation: React.FC = () => {
   const location = useLocation();
-  const { admin, logout } = useAuth();
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { path: '/upload', label: 'Upload Trip Sheet', icon: Upload },
     { path: '/driver', label: 'Driver App', icon: Smartphone },
   ];
-
-  const handleLogout = () => {
-    logout();
-  };
 
   return (
     <nav className="bg-white shadow-lg border-b">
@@ -52,19 +44,6 @@ const Navigation: React.FC = () => {
               })}
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
-              Welcome, <span className="font-medium">{admin?.username}</span>
-              <span className="text-blue-600 ml-1">({admin?.region})</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </button>
-          </div>
         </div>
       </div>
     </nav>
@@ -72,25 +51,13 @@ const Navigation: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  const location = useLocation();
-  const hideNavigation = location.pathname === '/login';
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {!hideNavigation && <Navigation />}
+      <Navigation />
       <main>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/upload" element={
-            <ProtectedRoute>
-              <UploadTripSheet />
-            </ProtectedRoute>
-          } />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/upload" element={<UploadTripSheet />} />
           <Route path="/driver" element={<DriverApp />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
@@ -101,11 +68,9 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AppContent />
+    </Router>
   );
 };
 
