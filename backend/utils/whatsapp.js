@@ -1,5 +1,5 @@
 // WhatsApp utility - FROZEN VERSION (No actual message sending)
-const { whatsappWebService } = require('./whatsappWeb');
+// No WhatsApp dependencies - system runs without messaging
 
 const sendWhatsAppMessage = async (phoneNumber, message) => {
   try {

@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { parseTripSheetWithAI } = require('../utils/aiPdfParser');
-// No WhatsApp functionality - removed all WhatsApp imports
+const { generateDeliveryMessage } = require('../utils/whatsapp');
 const Driver = require('../models/Driver');
 const Customer = require('../models/Customer');
 const Delivery = require('../models/Delivery');
