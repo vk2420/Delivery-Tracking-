@@ -52,11 +52,11 @@ const DriverApp: React.FC = () => {
   const [comment, setComment] = useState('');
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [optimizedRoute, setOptimizedRoute] = useState<Delivery[]>([]);
-  const [routeMetrics, setRouteMetrics] = useState<any>(null);
-  const [showMap, setShowMap] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [socket, setSocket] = useState<any>(null);
+  const [, setOptimizedRoute] = useState<Delivery[]>([]);
+  const [, setRouteMetrics] = useState<any>(null);
+  // const [showMap, setShowMap] = useState(false);
+  const [, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [, setSocket] = useState<any>(null);
 
   // Initialize Socket.io and Location Tracking
   useEffect(() => {
@@ -244,6 +244,7 @@ const DriverApp: React.FC = () => {
   };
 
   // Optimize route
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const optimizeRoute = async () => {
     if (!driver) return;
 

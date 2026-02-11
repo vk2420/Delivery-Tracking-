@@ -56,7 +56,7 @@ interface DriverRoute {
 const LiveTracking: React.FC = () => {
     const [drivers, setDrivers] = useState<Record<string, DriverLocation>>({});
     const [driverRoutes, setDriverRoutes] = useState<DriverRoute[]>([]);
-    const [socket, setSocket] = useState<any>(null);
+    const [, setSocket] = useState<any>(null);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
