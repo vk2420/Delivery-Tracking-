@@ -26,6 +26,15 @@ const driverSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  location: {
+    lat: Number,
+    lng: Number,
+    lastUpdated: Date
   }
 }, {
   timestamps: true

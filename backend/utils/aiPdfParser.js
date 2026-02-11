@@ -20,12 +20,12 @@ const extractDataWithRegex = (text) => {
     let deliverySource = null;
     let cluster = null;
     let concept = null;
-    
+
     console.log('🔍 MULTI-DRIVER APPROACH: Grouping by driver');
-    
+
     // Extract delivery source (LJYW, LJSW, etc.) - try multiple patterns
     console.log('🔍 Searching for delivery source in PDF text...');
-    
+
     // Try different patterns for delivery source
     const sourcePatterns = [
       /Delivery Source:\s*([A-Z0-9]+)/i,
@@ -34,7 +34,7 @@ const extractDataWithRegex = (text) => {
       /Code:\s*([A-Z0-9]+)/i,
       /\b(LJ[A-Z]{2}|MK[A-Z]{2}|LS[A-Z]{2}|HB[A-Z]{2}|TAIF|ALBAHA)\b/i
     ];
-    
+
     for (const pattern of sourcePatterns) {
       const match = text.match(pattern);
       if (match) {
@@ -43,7 +43,7 @@ const extractDataWithRegex = (text) => {
         break;
       }
     }
-    
+
     // Map delivery source to cluster and concept
     if (deliverySource) {
       const mapping = getClusterAndConcept(deliverySource);
@@ -55,108 +55,108 @@ const extractDataWithRegex = (text) => {
       console.log('📄 First 500 characters of PDF text:');
       console.log(text.substring(0, 500));
     }
-  
+
     // Extract ALL driver information - look for multiple drivers by DO numbers
     console.log('🔍 Searching for ALL driver information by DO numbers...');
     console.log('📄 PDF text preview (first 1000 chars):', text.substring(0, 1000));
     console.log('📄 PDF text preview (last 1000 chars):', text.substring(Math.max(0, text.length - 1000)));
-    
-      // Step 1: Find all DO numbers in the PDF - improved detection
-      const doNumbers = [];
-      
-      // Method 1: Look for "DO No." pattern
-      const doMatches = text.match(/DO No[.:\s]*(\d+)/gi);
-      if (doMatches) {
-        for (const match of doMatches) {
-          const doMatch = match.match(/DO No[.:\s]*(\d+)/i);
-          if (doMatch && !doNumbers.includes(doMatch[1])) {
-            doNumbers.push(doMatch[1]);
-            console.log(`📋 Found DO Number: ${doMatch[1]}`);
-          }
-        }
-      }
 
-      // Method 2: Look for distinct 7-digit numbers that could be DO numbers
-      if (doNumbers.length === 0) {
-        console.log('🔍 Looking for 7-digit DO numbers...');
-        const sevenDigitNumbers = text.match(/\b(\d{7})\b/g);
-        if (sevenDigitNumbers) {
-          for (const number of sevenDigitNumbers) {
-            if (!doNumbers.includes(number)) {
-              doNumbers.push(number);
-              console.log(`📋 Found 7-digit DO Number: ${number}`);
-            }
-          }
-        }
-      }
+    // Step 1: Find all DO numbers in the PDF - improved detection
+    const doNumbers = [];
 
-      // Method 3: Look for driver sections by employee numbers
-      console.log('🔍 Looking for driver sections by employee numbers...');
-      const driverEmpNumbers = ['2306722659', '2587133104', '110717', '8645', '101144'];
-      const foundDrivers = [];
-      
-      for (const empNo of driverEmpNumbers) {
-        if (text.includes(empNo)) {
-          console.log(`👤 Found driver employee number: ${empNo}`);
-          foundDrivers.push(empNo);
-          
-          // Try to find associated DO number near this employee number
-          const empIndex = text.indexOf(empNo);
-          const contextBefore = text.substring(Math.max(0, empIndex - 200), empIndex);
-          const contextAfter = text.substring(empIndex, Math.min(text.length, empIndex + 200));
-          
-          // Look for DO number in context
-          const doInContext = contextBefore.match(/(\d{7})/) || contextAfter.match(/(\d{7})/);
-          if (doInContext && !doNumbers.includes(doInContext[1])) {
-            doNumbers.push(doInContext[1]);
-            console.log(`📋 Found DO Number near driver ${empNo}: ${doInContext[1]}`);
+    // Method 1: Look for "DO No." pattern
+    const doMatches = text.match(/DO No[.:\s]*(\d+)/gi);
+    if (doMatches) {
+      for (const match of doMatches) {
+        const doMatch = match.match(/DO No[.:\s]*(\d+)/i);
+        if (doMatch && !doNumbers.includes(doMatch[1])) {
+          doNumbers.push(doMatch[1]);
+          console.log(`📋 Found DO Number: ${doMatch[1]}`);
+        }
+      }
+    }
+
+    // Method 2: Look for distinct 7-digit numbers that could be DO numbers
+    if (doNumbers.length === 0) {
+      console.log('🔍 Looking for 7-digit DO numbers...');
+      const sevenDigitNumbers = text.match(/\b(\d{7})\b/g);
+      if (sevenDigitNumbers) {
+        for (const number of sevenDigitNumbers) {
+          if (!doNumbers.includes(number)) {
+            doNumbers.push(number);
+            console.log(`📋 Found 7-digit DO Number: ${number}`);
           }
         }
       }
-    
+    }
+
+    // Method 3: Look for driver sections by employee numbers
+    console.log('🔍 Looking for driver sections by employee numbers...');
+    const driverEmpNumbers = ['2306722659', '2587133104', '110717', '8645', '101144'];
+    const foundDrivers = [];
+
+    for (const empNo of driverEmpNumbers) {
+      if (text.includes(empNo)) {
+        console.log(`👤 Found driver employee number: ${empNo}`);
+        foundDrivers.push(empNo);
+
+        // Try to find associated DO number near this employee number
+        const empIndex = text.indexOf(empNo);
+        const contextBefore = text.substring(Math.max(0, empIndex - 200), empIndex);
+        const contextAfter = text.substring(empIndex, Math.min(text.length, empIndex + 200));
+
+        // Look for DO number in context
+        const doInContext = contextBefore.match(/(\d{7})/) || contextAfter.match(/(\d{7})/);
+        if (doInContext && !doNumbers.includes(doInContext[1])) {
+          doNumbers.push(doInContext[1]);
+          console.log(`📋 Found DO Number near driver ${empNo}: ${doInContext[1]}`);
+        }
+      }
+    }
+
     console.log(`📋 Found ${doNumbers.length} DO numbers:`, doNumbers);
-    
-      // Step 2: For each DO number, find the associated driver information
-      const drivers = [];
-      const driverPhones = [];
 
-      for (const doNumber of doNumbers) {
-        console.log(`🔍 Looking for driver info for DO: ${doNumber}`);
+    // Step 2: For each DO number, find the associated driver information
+    const drivers = [];
+    const driverPhones = [];
 
-        // Find the section for this DO number - try multiple approaches
-        let doSection = null;
-        let section = '';
-        
-        // Approach 1: Look for DO No. followed by the number
-        const doSectionRegex1 = new RegExp(`DO No[.:\s]*${doNumber}[\\s\\S]*?(?=DO No|$)`, 'i');
-        doSection = text.match(doSectionRegex1);
-        
-        if (doSection) {
-          section = doSection[0];
-          console.log(`📄 DO ${doNumber} section found (approach 1):`, section.substring(0, 500));
+    for (const doNumber of doNumbers) {
+      console.log(`🔍 Looking for driver info for DO: ${doNumber}`);
+
+      // Find the section for this DO number - try multiple approaches
+      let doSection = null;
+      let section = '';
+
+      // Approach 1: Look for DO No. followed by the number
+      const doSectionRegex1 = new RegExp(`DO No[.:\s]*${doNumber}[\\s\\S]*?(?=DO No|$)`, 'i');
+      doSection = text.match(doSectionRegex1);
+
+      if (doSection) {
+        section = doSection[0];
+        console.log(`📄 DO ${doNumber} section found (approach 1):`, section.substring(0, 500));
+      } else {
+        // Approach 2: Look for the number in the header area (first 1000 chars)
+        const headerSection = text.substring(0, 1000);
+        if (headerSection.includes(doNumber)) {
+          section = headerSection;
+          console.log(`📄 DO ${doNumber} section found (approach 2 - header):`, section.substring(0, 500));
         } else {
-          // Approach 2: Look for the number in the header area (first 1000 chars)
-          const headerSection = text.substring(0, 1000);
-          if (headerSection.includes(doNumber)) {
-            section = headerSection;
-            console.log(`📄 DO ${doNumber} section found (approach 2 - header):`, section.substring(0, 500));
-          } else {
-            // Approach 3: Look for the number anywhere in the document
-            const fullTextIndex = text.indexOf(doNumber);
-            if (fullTextIndex !== -1) {
-              const contextStart = Math.max(0, fullTextIndex - 500);
-              const contextEnd = Math.min(text.length, fullTextIndex + 500);
-              section = text.substring(contextStart, contextEnd);
-              console.log(`📄 DO ${doNumber} section found (approach 3 - anywhere):`, section.substring(0, 500));
-            }
+          // Approach 3: Look for the number anywhere in the document
+          const fullTextIndex = text.indexOf(doNumber);
+          if (fullTextIndex !== -1) {
+            const contextStart = Math.max(0, fullTextIndex - 500);
+            const contextEnd = Math.min(text.length, fullTextIndex + 500);
+            section = text.substring(contextStart, contextEnd);
+            console.log(`📄 DO ${doNumber} section found (approach 3 - anywhere):`, section.substring(0, 500));
           }
         }
-      
+      }
+
       if (section) {
-        
+
         // Look for driver in this section
         let driverFound = false;
-        
+
         // Pattern 1: Driver: followed by employee number
         const driverMatch1 = section.match(/Driver:\s*(\d+)/i);
         if (driverMatch1 && !driverFound) {
@@ -166,7 +166,7 @@ const extractDataWithRegex = (text) => {
           console.log(`👤 Found driver for DO ${doNumber}: ${mappedName} (${empNo})`);
           driverFound = true;
         }
-        
+
         // Pattern 2: Look for employee numbers in this section
         if (!driverFound) {
           const empMatches = section.match(/\b(\d{4,10})\b/g);
@@ -182,21 +182,21 @@ const extractDataWithRegex = (text) => {
             }
           }
         }
-        
+
         // Pattern 3: Look for specific employee numbers in the header (like 5663)
-          if (!driverFound) {
-            const specificEmpNumbers = ['2306722659', '2587133104', '110717', '8645', '101144'];
-            for (const empNo of specificEmpNumbers) {
-              if (section.includes(empNo)) {
-                const mappedName = getDriverName(empNo);
-                drivers.push({ empNo, name: mappedName, doNumber });
-                console.log(`👤 Found driver for DO ${doNumber} (specific): ${mappedName} (${empNo})`);
-                driverFound = true;
-                break;
-              }
+        if (!driverFound) {
+          const specificEmpNumbers = ['2306722659', '2587133104', '110717', '8645', '101144'];
+          for (const empNo of specificEmpNumbers) {
+            if (section.includes(empNo)) {
+              const mappedName = getDriverName(empNo);
+              drivers.push({ empNo, name: mappedName, doNumber });
+              console.log(`👤 Found driver for DO ${doNumber} (specific): ${mappedName} (${empNo})`);
+              driverFound = true;
+              break;
             }
           }
-        
+        }
+
         // Look for driver phone in this section
         const phoneMatch = section.match(/Mobile No:\s*(\d+)/i);
         if (phoneMatch) {
@@ -218,7 +218,7 @@ const extractDataWithRegex = (text) => {
             driverPhones.push('0000000000');
           }
         }
-        
+
         if (!driverFound) {
           // Create a default driver for this DO
           drivers.push({ empNo: '0000', name: 'Unknown Driver', doNumber });
@@ -227,11 +227,11 @@ const extractDataWithRegex = (text) => {
         }
       }
     }
-    
+
     // If no DO numbers found, try the old method
     if (drivers.length === 0) {
       console.log('⚠️ No DO numbers found, trying alternative driver detection...');
-      
+
       // Look for any driver information in the entire PDF
       const driverMatches = text.match(/Driver:\s*(\d+)/gi);
       if (driverMatches) {
@@ -245,7 +245,7 @@ const extractDataWithRegex = (text) => {
           }
         }
       }
-      
+
       // Look for phone numbers
       const phoneMatches = text.match(/Mobile No:\s*(\d+)/gi);
       if (phoneMatches) {
@@ -257,12 +257,12 @@ const extractDataWithRegex = (text) => {
           }
         }
       }
-      
+
       // Special handling for second driver that appears at the end of PDF
       console.log('🔍 Checking for second driver at end of PDF...');
       const endSection = text.substring(Math.max(0, text.length - 2000)); // Last 2000 chars
       console.log('📄 End section preview:', endSection.substring(0, 500));
-      
+
       // Look for second driver in the end section - only if we haven't found enough drivers
       if (drivers.length < 2) {
         console.log('🔍 Looking for additional drivers in end section...');
@@ -271,7 +271,7 @@ const extractDataWithRegex = (text) => {
           if (endSection.includes(empNo) && !drivers.some(d => d.empNo === empNo)) {
             const mappedName = getDriverName(empNo);
             console.log(`👤 Found second driver at end: ${mappedName} (${empNo})`);
-            
+
             // Try to find associated DO number for this driver
             let associatedDoNumber = '0000';
             const doMatch = endSection.match(/(\d{7})/);
@@ -279,9 +279,9 @@ const extractDataWithRegex = (text) => {
               associatedDoNumber = doMatch[1];
               console.log(`📋 Found DO for second driver: ${associatedDoNumber}`);
             }
-            
+
             drivers.push({ empNo, name: mappedName, doNumber: associatedDoNumber });
-            
+
             // Try to find phone number for second driver - validate it's a real phone number
             const phoneMatch = endSection.match(/(\d{10,})/);
             if (phoneMatch && phoneMatch[1].length >= 10 && phoneMatch[1].length <= 15) {
@@ -312,32 +312,32 @@ const extractDataWithRegex = (text) => {
         };
       }
     }
-    
+
     console.log(`🚛 Found ${drivers.length} driver(s):`, drivers.map(d => `${d.name} (${d.empNo}) for DO ${d.doNumber}`));
-    
+
     // Initialize driver groups - consolidate drivers with same employee number
     const processedDrivers = new Set();
-    
+
     for (let i = 0; i < drivers.length; i++) {
       const driver = drivers[i];
       const actualDriverName = getDriverName(driver.empNo);
-      
+
       // Skip if we've already processed this driver
       if (processedDrivers.has(driver.empNo)) {
         console.log(`🚛 Skipping duplicate driver: ${actualDriverName} (${driver.empNo})`);
         continue;
       }
-      
+
       processedDrivers.add(driver.empNo);
-      
+
       // Use the corresponding phone number if available
       const driverPhone = driverPhones[i] || '0000000000';
-      
+
       // Create a unique driver ID based on employee number only
       const driverId = `${driver.empNo}_${actualDriverName.replace(/\s+/g, '_')}`;
-      
+
       console.log(`🚛 Driver ID: ${driver.empNo} -> Name: ${actualDriverName} -> Phone: ${driverPhone}`);
-      
+
       driverGroups.set(driverId, {
         driverInfo: {
           name: actualDriverName,
@@ -351,70 +351,109 @@ const extractDataWithRegex = (text) => {
         deliveries: []
       });
     }
-    
+
     // If we have multiple drivers, we need to distribute deliveries among them
     // For now, we'll assign all deliveries to the first driver, but this can be improved
     // based on your specific business logic
     if (drivers.length > 1) {
       console.log(`🚛 Multiple drivers detected: ${drivers.length}. All deliveries will be assigned to the first driver for now.`);
     }
-    
+
     // Process deliveries and assign to drivers
     const lines = text.split('\n');
     let deliveryCount = 0;
-    
+
+    // Track invoices to group items properly
+    const invoiceMap = new Map(); // invoiceNo -> { customerData, items[], lineIndex }
+
+    // First pass: Extract all invoices and their customer data
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+
       // Look for invoice numbers (11+ digits)
       const invoiceMatch = line.match(/(\d{11,})/);
       if (invoiceMatch) {
         const invoiceNo = invoiceMatch[1];
-        console.log(`📄 Found invoice: ${invoiceNo}`);
-        
+
+        // Check if we've already seen this invoice
+        if (invoiceMap.has(invoiceNo)) {
+          console.log(`📄 Found duplicate invoice ${invoiceNo}, will merge items`);
+          continue; // Skip, we'll add items to existing entry
+        }
+
+        console.log(`📄 Found new invoice: ${invoiceNo}`);
+
         // Look for customer data in the next few lines
         let phone1 = '';
         let phone2 = '';
         let customerName = '';
         let address = '';
         let shift = 'Afternoon';
-        
-        // Search in the next 10 lines for customer data
+
+        // Search in the next 15 lines for customer data (increased from 10)
         for (let j = i + 1; j < Math.min(i + 11, lines.length); j++) {
           const searchLine = lines[j];
-          
-          // Look for phone numbers
+
+          // Look for phone numbers with enhanced validation
           const phone1Match = searchLine.match(/Mob1\.(\d+)/);
           if (phone1Match && !phone1) {
-            phone1 = phone1Match[1];
-            console.log(`📱 Found phone1: ${phone1}`);
+            const potentialPhone = phone1Match[1];
+            // Validate phone number - reject invoice-like patterns
+            const invalidPrefixes = ['290742', '68229', '68230', '682301', '682302'];
+            const isInvalid = invalidPrefixes.some(prefix => potentialPhone.startsWith(prefix));
+
+            if (!isInvalid && potentialPhone.length >= 10 && potentialPhone.length <= 15) {
+              phone1 = potentialPhone;
+              console.log(`📱 Found valid phone1: ${phone1}`);
+            } else {
+              console.log(`⚠️ Rejected invalid phone1: ${potentialPhone}`);
+            }
           }
-          
+
           const phone2Match = searchLine.match(/Mob2\.(\d+)/);
           if (phone2Match && !phone2) {
-            phone2 = phone2Match[1];
-            console.log(`📱 Found phone2: ${phone2}`);
+            const potentialPhone = phone2Match[1];
+            const invalidPrefixes = ['290742', '68229', '68230', '682301', '682302'];
+            const isInvalid = invalidPrefixes.some(prefix => potentialPhone.startsWith(prefix));
+
+            if (!isInvalid && potentialPhone.length >= 10 && potentialPhone.length <= 15) {
+              phone2 = potentialPhone;
+              console.log(`📱 Found valid phone2: ${phone2}`);
+            } else {
+              console.log(`⚠️ Rejected invalid phone2: ${potentialPhone}`);
+            }
           }
-          
-          // Look for customer name - be more specific
+
+          // Look for customer name with enhanced validation
           let nameMatch = searchLine.match(/Name:\s*([A-Za-z\s\-\.]{2,50})/);
           if (!nameMatch) {
-            // Try to find names that look like actual customer names
-            nameMatch = searchLine.match(/\b([A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/);
+            // Try to find names that look like actual customer names (2-4 words)
+            nameMatch = searchLine.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/);
           }
-          if (nameMatch && !customerName &&
-              nameMatch[1].trim() !== 'Inv No' &&
-              nameMatch[1].trim() !== 'Address' &&
-              nameMatch[1].trim() !== 'Customer Details' &&
-              nameMatch[1].trim() !== 'DO No' &&
-              nameMatch[1].trim() !== 'Driver' &&
-              nameMatch[1].trim() !== 'Name' &&
-              nameMatch[1].trim().length > 2 &&
-              !nameMatch[1].trim().match(/^\d+$/)) { // Don't match pure numbers
-            customerName = nameMatch[1].trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
-            console.log(`👤 Found customer: ${customerName}`);
+
+          if (nameMatch && !customerName) {
+            const potentialName = nameMatch[1].trim();
+
+            // Comprehensive exclusion list
+            const excludedNames = [
+              'Inv No', 'Invoice', 'Address', 'Customer Details', 'DO No',
+              'Driver', 'Name', 'Mobile', 'Mob1', 'Mob2', 'Phone', 'Date',
+              'Time', 'Shift', 'Morning', 'Afternoon', 'Delivery', 'Status'
+            ];
+
+            const isExcluded = excludedNames.some(ex => potentialName.includes(ex));
+            const isValidLength = potentialName.length >= 3 && potentialName.length <= 50;
+            const hasNoNumbers = !/\d/.test(potentialName);
+            const hasMultipleWords = potentialName.split(/\s+/).length >= 2;
+
+            if (!isExcluded && isValidLength && hasNoNumbers && hasMultipleWords) {
+              customerName = potentialName.replace(/\n/g, ' ').replace(/\s+/g, ' ');
+              console.log(`👤 Found valid customer: ${customerName}`);
+            } else {
+              console.log(`⚠️ Rejected invalid name: ${potentialName}`);
+            }
           }
-          
+
           // Look for address - try multiple patterns
           let addressMatch = searchLine.match(/(\d+,\s*[A-Za-z\s,]+(?:Jeddah|Makkah|Riyadh|Yanbu|Al Baha|Madina|Taif))/);
           if (!addressMatch) {
@@ -429,7 +468,7 @@ const extractDataWithRegex = (text) => {
             address = addressMatch[1].trim().replace(/\n/g, ' ').replace(/\s+/g, ' ');
             console.log(`🏠 Found address: ${address}`);
           }
-          
+
           // Look for shift information
           if (searchLine.includes('Morning') || searchLine.includes('AM')) {
             shift = 'Morning';
@@ -437,54 +476,81 @@ const extractDataWithRegex = (text) => {
             shift = 'Afternoon';
           }
         }
-        
+
         // Create delivery and assign to driver - ensure we have minimum required data
         if (phone1 || customerName || invoiceNo) {
-          // Find the correct driver for this delivery based on DO number
+          // Find the correct driver for this delivery using position-based matching
           let assignedDriverId = null;
           let driverGroup = null;
-          
-          // Try to find which DO section this delivery belongs to
+
+          // Get the position of this invoice in the text
+          const invoicePosition = text.indexOf(invoiceNo);
+
+          // Method 1: Try to find which DO section this delivery belongs to
+          let foundByDOSection = false;
           for (const doNumber of doNumbers) {
-            // Look for this invoice in the DO section
             const doSectionRegex = new RegExp(`DO No[.:\s]*${doNumber}[\\s\\S]*?(?=DO No|$)`, 'i');
             const doSection = text.match(doSectionRegex);
-            
+
             if (doSection && doSection[0].includes(invoiceNo)) {
-              // This delivery belongs to this DO, find the corresponding driver
               const driver = drivers.find(d => d.doNumber === doNumber);
               if (driver) {
                 const driverId = `${driver.empNo}_${getDriverName(driver.empNo).replace(/\s+/g, '_')}`;
                 driverGroup = driverGroups.get(driverId);
                 assignedDriverId = driverId;
-                console.log(`📦 Assigning invoice ${invoiceNo} to driver for DO ${doNumber}`);
+                console.log(`📦 Assigning invoice ${invoiceNo} to driver ${driver.name} (DO ${doNumber})`);
+                foundByDOSection = true;
                 break;
               }
             }
           }
-          
-          // If no specific DO found, use round-robin assignment
+
+          // Method 2: If DO section matching failed, use position-based assignment
+          if (!foundByDOSection && invoicePosition !== -1) {
+            let closestDriver = null;
+            let minDistance = Infinity;
+
+            for (const driver of drivers) {
+              const doPosition = text.indexOf(driver.doNumber);
+              if (doPosition !== -1) {
+                const distance = Math.abs(invoicePosition - doPosition);
+                if (distance < minDistance) {
+                  minDistance = distance;
+                  closestDriver = driver;
+                }
+              }
+            }
+
+            if (closestDriver) {
+              const driverId = `${closestDriver.empNo}_${getDriverName(closestDriver.empNo).replace(/\s+/g, '_')}`;
+              driverGroup = driverGroups.get(driverId);
+              assignedDriverId = driverId;
+              console.log(`📦 Assigning invoice ${invoiceNo} to driver ${closestDriver.name} (position-based, distance: ${minDistance})`);
+            }
+          }
+
+          // Method 3: Fallback to first driver if all else fails
           if (!assignedDriverId) {
             const driverIds = Array.from(driverGroups.keys());
-            assignedDriverId = driverIds[deliveryCount % driverIds.length];
+            assignedDriverId = driverIds[0];
             driverGroup = driverGroups.get(assignedDriverId);
-            console.log(`📦 Assigning invoice ${invoiceNo} to driver (round-robin): ${assignedDriverId}`);
+            console.log(`⚠️ Assigning invoice ${invoiceNo} to first driver (fallback): ${assignedDriverId}`);
           }
-          
+
           // Ensure we have valid customer data
-          const validCustomerName = customerName && 
-            customerName !== 'DO No' && 
-            customerName !== 'Driver' && 
+          const validCustomerName = customerName &&
+            customerName !== 'DO No' &&
+            customerName !== 'Driver' &&
             customerName !== 'Name' &&
             customerName.trim().length > 2
-            ? customerName.trim() 
+            ? customerName.trim()
             : `Customer_${invoiceNo}`;
-          
+
           const validPhone = phone1 || `0000000000`;
-          const validAddress = address && address.length > 5 
-            ? address.trim() 
+          const validAddress = address && address.length > 5
+            ? address.trim()
             : 'Address not specified';
-          
+
           const delivery = {
             invoiceNo: invoiceNo,
             customerName: validCustomerName,
@@ -502,7 +568,7 @@ const extractDataWithRegex = (text) => {
             driverPhone: driverGroup.driverInfo.phone,
             customerPhone: validPhone
           };
-          
+
           driverGroup.deliveries.push(delivery);
           deliveryCount++;
           console.log(`🚛 Assigned delivery to driver: ${driverGroup.driverInfo.name}`);
@@ -511,10 +577,10 @@ const extractDataWithRegex = (text) => {
         }
       }
     }
-    
+
     // Create trip sheets for each driver
     const tripSheets = [];
-    
+
     for (const [driverId, driverGroup] of driverGroups) {
       if (driverGroup.deliveries.length > 0) {
         const tripSheet = {
@@ -529,20 +595,20 @@ const extractDataWithRegex = (text) => {
         console.log(`🚛 Created trip sheet for ${driverGroup.driverInfo.name} with ${driverGroup.deliveries.length} deliveries`);
       }
     }
-    
+
     console.log(`✅ Created ${tripSheets.length} trip sheet(s) with ${tripSheets.reduce((sum, ts) => sum + ts.deliveries.length, 0)} total deliveries`);
-    
+
     return {
       tripSheets,
       deliverySource,
       cluster,
       concept
     };
-    
+
   } catch (error) {
     console.error('❌ Error in extractDataWithRegex:', error);
     console.error('❌ Error stack:', error.stack);
-    
+
     // Return fallback data
     return {
       tripSheets: [{
@@ -564,20 +630,20 @@ const extractDataWithRegex = (text) => {
 const parseTripSheetWithAI = async (buffer) => {
   try {
     console.log('🤖 Starting multi-driver PDF parsing...');
-    
+
     // Step 1: Extract text from PDF
     const text = await extractTextFromPDF(buffer);
     console.log('📄 PDF text extracted, length:', text.length);
     console.log('📝 Raw text preview:', text.substring(0, 500) + '...');
-    
+
     // Step 2: Use multi-driver regex extraction
     console.log('🔍 Using multi-driver regex extraction...');
     const regexData = extractDataWithRegex(text);
-    
+
     if (regexData.tripSheets.length > 0) {
       console.log('✅ Multi-driver extraction successful!');
       console.log('🚛 Trip sheets found:', regexData.tripSheets.length);
-      
+
       // Convert to the expected format for the upload route
       const allDeliveries = [];
       for (const tripSheet of regexData.tripSheets) {
@@ -585,7 +651,7 @@ const parseTripSheetWithAI = async (buffer) => {
           allDeliveries.push(delivery);
         }
       }
-      
+
       return {
         success: true,
         tripSheets: regexData.tripSheets,
@@ -601,7 +667,7 @@ const parseTripSheetWithAI = async (buffer) => {
         deliveries: []
       };
     }
-    
+
   } catch (error) {
     console.error('❌ Error in parseTripSheetWithAI:', error);
     return {

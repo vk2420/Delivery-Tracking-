@@ -10,19 +10,19 @@ const Driver = require('../models/Driver');
 router.post('/login', async (req, res) => {
   try {
     const { doNumber, phone } = req.body;
-    
+
     // Find driver by employee number
-    const driver = await Driver.findOne({ 
+    const driver = await Driver.findOne({
       empNo: doNumber
     });
-    
+
     if (!driver) {
       return res.status(404).json({
         success: false,
         message: 'No driver found for this employee number'
       });
     }
-    
+
     // Verify phone number (optional security check)
     if (phone && driver.phone !== phone) {
       return res.status(401).json({
@@ -30,7 +30,7 @@ router.post('/login', async (req, res) => {
         message: 'Invalid credentials'
       });
     }
-    
+
     res.json({
       success: true,
       driver: {
@@ -59,16 +59,16 @@ router.get('/deliveries/:driverId', async (req, res) => {
   try {
     const { driverId } = req.params;
     const { status } = req.query;
-    
+
     let filter = { driverId };
     if (status) {
       filter.status = status;
     }
-    
+
     const deliveries = await Delivery.find(filter)
       .populate('customerId', 'name phone1 phone2 address')
       .sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       deliveries: deliveries.map(delivery => ({
@@ -101,37 +101,53 @@ router.patch('/deliveries/:deliveryId/status', async (req, res) => {
   try {
     const { deliveryId } = req.params;
     const { status, reason, location, photo } = req.body;
-    
+
     const updateData = {
       status,
       updatedAt: new Date()
     };
-    
+
+    if (status === 'Delivered') {
+      updateData.deliveredAt = new Date();
+    } else if (status === 'Not Delivered' || status === 'Postponed' || status === 'Failed') {
+      // If status is changed back from Delivered, valid logic might be to clear deliveredAt
+      // updateData.deliveredAt = null; 
+    }
+
     if (reason) {
       updateData.failureReason = reason;
     }
-    
+
     if (location) {
       updateData.deliveryLocation = location;
     }
-    
+
     if (photo) {
       updateData.deliveryPhoto = photo;
     }
-    
+
     const delivery = await Delivery.findByIdAndUpdate(
       deliveryId,
       updateData,
       { new: true }
     ).populate('customerId', 'name phone1 phone2 address');
-    
+
     if (!delivery) {
       return res.status(404).json({
         success: false,
         message: 'Delivery not found'
       });
     }
-    
+
+    // Emit status update via socket if io is available
+    if (req.io) {
+      req.io.to('admins').emit('delivery:update', {
+        id: delivery._id,
+        status: delivery.status,
+        deliveredAt: delivery.deliveredAt
+      });
+    }
+
     res.json({
       success: true,
       message: 'Delivery status updated successfully',
@@ -139,6 +155,7 @@ router.patch('/deliveries/:deliveryId/status', async (req, res) => {
         id: delivery._id,
         invoiceNo: delivery.invoiceNo,
         status: delivery.status,
+        deliveredAt: delivery.deliveredAt,
         customerName: delivery.customerId?.name || delivery.customerName
       }
     });
@@ -159,18 +176,18 @@ router.patch('/deliveries/:deliveryId/status', async (req, res) => {
 router.get('/deliveries/:deliveryId/details', async (req, res) => {
   try {
     const { deliveryId } = req.params;
-    
+
     const delivery = await Delivery.findById(deliveryId)
       .populate('customerId', 'name phone1 phone2 address')
       .populate('driverId', 'name phone empNo');
-    
+
     if (!delivery) {
       return res.status(404).json({
         success: false,
         message: 'Delivery not found'
       });
     }
-    
+
     res.json({
       success: true,
       delivery: {

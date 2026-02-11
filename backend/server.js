@@ -3,7 +3,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config');
-// No WhatsApp functionality - system runs without messaging
+const http = require('http');
+const { Server } = require('socket.io');
+const Driver = require('./models/Driver');
 
 // Import routes
 const uploadRoutes = require('./routes/upload');
@@ -13,8 +15,94 @@ const enhancedDeliveryRoutes = require('./routes/enhancedDeliveries'); // Enhanc
 const driverRoutes = require('./routes/drivers');
 const customerRoutes = require('./routes/customers');
 const driverAppRoutes = require('./routes/driverApp'); // Driver mobile app routes
+const routeRoutes = require('./routes/routes'); // Route optimization routes
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins for simplicity, restrict in production
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"]
+  }
+});
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 New client connected:', socket.id);
+
+  // Join a room based on user type (admin or driver)
+  socket.on('join', (data) => {
+    if (data.type === 'admin') {
+      socket.join('admins');
+      console.log(`👨‍💼 Admin joined: ${socket.id}`);
+    } else if (data.type === 'driver') {
+      socket.join(`driver_${data.driverId}`);
+      console.log(`🚚 Driver joined: ${data.driverId} (${socket.id})`);
+
+      // Update driver online status
+      Driver.findByIdAndUpdate(data.driverId, { isActive: true, isOnline: true }).catch(err => console.error(err));
+    }
+  });
+
+  // Handle driver location updates
+  socket.on('driver:location', async (data) => {
+    // data = { driverId: '...', location: { lat: 123, lng: 456 }, timestamp: '...' }
+    try {
+      // Broadcast to all admins
+      io.to('admins').emit('driver:location_update', data);
+
+      // Update driver in database (throttled/optional to prevent spamming DB)
+      // For now, we update it so we have the last known location
+      if (data.driverId) {
+        await Driver.findByIdAndUpdate(data.driverId, {
+          location: {
+            lat: data.location.lat,
+            lng: data.location.lng,
+            lastUpdated: new Date()
+          },
+          isOnline: true
+        });
+      }
+    } catch (error) {
+      console.error('Error handling location update:', error);
+    }
+  });
+
+  // Handle route optimization requests from driver
+  socket.on('route:request_optimization', async (data) => {
+    console.log(`📍 Route optimization requested for driver: ${data.driverId}`);
+    // This will be handled by the API endpoint, but we can emit a confirmation
+    socket.emit('route:optimization_started', {
+      driverId: data.driverId,
+      message: 'Route optimization in progress...'
+    });
+  });
+
+  // Handle route deviation alerts
+  socket.on('route:deviation', async (data) => {
+    console.log(`⚠️ Route deviation detected for driver: ${data.driverId}`);
+    // Broadcast to admins
+    io.to('admins').emit('route:deviation_alert', {
+      driverId: data.driverId,
+      currentLocation: data.currentLocation,
+      expectedLocation: data.expectedLocation,
+      deviation: data.deviation,
+      timestamp: new Date()
+    });
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log('🔴 Client disconnected:', socket.id);
+    // Note: We don't immediately mark driver offline as mobile connections can be flaky
+  });
+});
+
+// Make io available in requests
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 // Connect to MongoDB
 const connectDB = async () => {
@@ -36,7 +124,7 @@ const connectDB = async () => {
 if (process.env.VERCEL) {
   console.log('🔵 Running in Vercel environment');
   console.log('🔵 MongoDB URI exists:', !!process.env.MONGODB_URI);
-  
+
   app.use(async (req, res, next) => {
     try {
       console.log(`📥 Request: ${req.method} ${req.path}`);
@@ -45,7 +133,7 @@ if (process.env.VERCEL) {
       next();
     } catch (error) {
       console.error('❌ Database connection failed:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         error: 'Database connection failed',
         details: error.message,
@@ -68,8 +156,8 @@ app.use('/admin', express.static(path.join(__dirname, 'public')));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'Delivery Portal API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.VERCEL ? 'Vercel' : 'Local',
@@ -84,21 +172,22 @@ app.use('/api/enhanced-deliveries', enhancedDeliveryRoutes); // New enhanced del
 app.use('/api/drivers', driverRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/driver', driverAppRoutes); // Driver mobile app routes
+app.use('/api/routes', routeRoutes); // Route optimization routes
 
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('❌ Error caught:', error);
   console.error('❌ Error stack:', error.stack);
-  
+
   if (error.code === 'LIMIT_FILE_SIZE') {
     return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
   }
-  
+
   if (error.message === 'Only PDF files are allowed') {
     return res.status(400).json({ error: 'Only PDF files are allowed' });
   }
-  
-  res.status(500).json({ 
+
+  res.status(500).json({
     success: false,
     error: 'Internal server error',
     details: error.message,
@@ -108,10 +197,10 @@ app.use((error, req, res, next) => {
 
 // 404 handler (must be last)
 app.use('*', (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     success: false,
     error: 'Route not found',
-    path: req.originalUrl 
+    path: req.originalUrl
   });
 });
 
@@ -123,11 +212,12 @@ if (process.env.VERCEL) {
   const startServer = async () => {
     try {
       await connectDB();
-      
+
       console.log('🚫 No WhatsApp functionality - system runs without messaging');
-      
-      app.listen(config.PORT, () => {
-        console.log(`🚀 Server running on port ${config.PORT}`);
+
+      // Use server.listen instead of app.listen for Socket.io
+      server.listen(config.PORT, () => {
+        console.log(`🚀 Server (with Socket.io) running on port ${config.PORT}`);
         console.log(`📊 Health check: http://localhost:${config.PORT}/api/health`);
         console.log(`📁 Upload endpoint: http://localhost:${config.PORT}/api/upload/upload`);
       });

@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
-import { 
-  Truck, 
-  MapPin, 
-  Phone, 
-  Package, 
-  CheckCircle, 
-  XCircle, 
-  Clock
+import React, { useState, useEffect } from 'react';
+import io from 'socket.io-client';
+import {
+  Truck,
+  MapPin,
+  Phone,
+  Package,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Navigation,
+
+  RefreshCw,
+  Map as MapIcon,
+  List
 } from 'lucide-react';
+import RouteMap from './RouteMap';
 
 interface Driver {
   id: string;
@@ -18,6 +25,7 @@ interface Driver {
 
 interface Delivery {
   id: string;
+  _id?: string;
   invoiceNo: string;
   customerName: string;
   customerPhone: string;
@@ -26,6 +34,10 @@ interface Delivery {
   shift: string;
   items: any[];
   createdAt: string;
+  coordinates?: { lat: number; lng: number };
+  sequence?: number;
+  distanceFromPrevious?: number;
+  estimatedArrival?: string;
 }
 
 const DriverApp: React.FC = () => {
@@ -39,11 +51,92 @@ const DriverApp: React.FC = () => {
   const [commentStatus, setCommentStatus] = useState('');
   const [comment, setComment] = useState('');
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [optimizedRoute, setOptimizedRoute] = useState<Delivery[]>([]);
+  const [routeMetrics, setRouteMetrics] = useState<any>(null);
+  const [showMap, setShowMap] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [socket, setSocket] = useState<any>(null);
+
+  // Initialize Socket.io and Location Tracking
+  useEffect(() => {
+    if (driver) {
+      console.log('🔌 Connecting to socket...');
+      const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:3001');
+      setSocket(newSocket);
+
+      newSocket.on('connect', () => {
+        console.log('✅ Socket connected:', newSocket.id);
+        newSocket.emit('join', { type: 'driver', driverId: driver.id });
+      });
+
+      // Listen for route optimization updates
+      newSocket.on('route:optimized', (data: any) => {
+        console.log('🗺️ Route optimized:', data);
+        setOptimizedRoute(data.route);
+        setRouteMetrics({
+          totalDistance: data.totalDistance,
+          estimatedTime: data.estimatedTime,
+          efficiency: data.efficiency
+        });
+        loadDeliveries(driver.id);
+      });
+
+      newSocket.on('route:recalculated', (data: any) => {
+        console.log('🔄 Route recalculated:', data);
+        setOptimizedRoute(data.route);
+        setRouteMetrics({
+          totalDistance: data.totalDistance,
+          estimatedTime: data.estimatedTime,
+          efficiency: data.efficiency
+        });
+        alert(`Route recalculated: ${data.reason}`);
+        loadDeliveries(driver.id);
+      });
+
+      // Start location tracking
+      let watchId: number;
+      if ('geolocation' in navigator) {
+        console.log('📍 Starting location tracking...');
+        watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            const newLocation = { lat: latitude, lng: longitude };
+            setCurrentLocation(newLocation);
+            console.log(`📍 Location update: ${latitude}, ${longitude}`);
+
+            newSocket.emit('driver:location', {
+              driverId: driver.id,
+              location: newLocation,
+              timestamp: new Date().toISOString()
+            });
+          },
+          (error) => {
+            console.error('❌ Location error:', error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      } else {
+        console.error('❌ Geolocation not supported');
+      }
+
+      return () => {
+        console.log('🛑 Stopping location tracking');
+        if (watchId) navigator.geolocation.clearWatch(watchId);
+        newSocket.disconnect();
+      };
+    }
+  }, [driver]);
+
   // Login function
   const handleLogin = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://172.20.10.2:3001/api/driver/login', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/driver/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,7 +145,7 @@ const DriverApp: React.FC = () => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setDriver(data.driver);
         setShowLogin(false);
@@ -90,8 +183,8 @@ const DriverApp: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          status: commentStatus, 
+        body: JSON.stringify({
+          status: commentStatus,
           reason: comment,
           location: 'GPS Location Captured', // In real app, get actual GPS
           photo: 'Photo Captured' // In real app, capture actual photo
@@ -99,7 +192,7 @@ const DriverApp: React.FC = () => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         // Refresh deliveries
         if (driver) {
@@ -109,6 +202,7 @@ const DriverApp: React.FC = () => {
         setComment('');
         setCommentStatus('');
         setSelectedDelivery(null);
+        setEditingId(null);
         alert('Delivery status updated successfully!');
       } else {
         alert('Failed to update status: ' + data.message);
@@ -127,12 +221,57 @@ const DriverApp: React.FC = () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/driver/deliveries/${driverId}`);
       const data = await response.json();
-      
+
       if (data.success) {
-        setDeliveries(data.deliveries);
+        const sortedDeliveries = data.deliveries.sort((a: Delivery, b: Delivery) => {
+          const seqA = a.sequence || 0;
+          const seqB = b.sequence || 0;
+          return seqA - seqB;
+        });
+        setDeliveries(sortedDeliveries);
+
+        // Set optimized route if deliveries have coordinates
+        const withCoords = sortedDeliveries.filter((d: Delivery) => d.coordinates);
+        if (withCoords.length > 0) {
+          setOptimizedRoute(withCoords);
+        }
       }
     } catch (error) {
       console.error('Load deliveries error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Optimize route
+  const optimizeRoute = async () => {
+    if (!driver) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/routes/optimize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driverId: driver.id })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setOptimizedRoute(data.optimizedRoute);
+        setRouteMetrics({
+          totalDistance: data.totalDistance,
+          estimatedTime: data.estimatedTime,
+          efficiency: data.efficiency
+        });
+        alert('Route optimized successfully!');
+        loadDeliveries(driver.id);
+      } else {
+        alert('Failed to optimize route: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Optimize route error:', error);
+      alert('Failed to optimize route');
     } finally {
       setLoading(false);
     }
@@ -147,8 +286,8 @@ const DriverApp: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          status, 
+        body: JSON.stringify({
+          status,
           reason,
           location: 'GPS Location Captured', // In real app, get actual GPS
           photo: 'Photo Captured' // In real app, capture actual photo
@@ -156,13 +295,14 @@ const DriverApp: React.FC = () => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         // Refresh deliveries
         if (driver) {
           loadDeliveries(driver.id);
         }
         setSelectedDelivery(null);
+        setEditingId(null);
         alert('Delivery status updated successfully!');
       } else {
         alert('Failed to update status: ' + data.message);
@@ -204,7 +344,7 @@ const DriverApp: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Driver Login</h1>
             <p className="text-gray-600">Enter your credentials to access deliveries</p>
           </div>
-          
+
           <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -219,7 +359,7 @@ const DriverApp: React.FC = () => {
                 required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Phone Number (Optional)
@@ -232,7 +372,7 @@ const DriverApp: React.FC = () => {
                 placeholder="Enter your phone number"
               />
             </div>
-            
+
             <button
               type="submit"
               disabled={loading}
@@ -299,7 +439,7 @@ const DriverApp: React.FC = () => {
                           <span className="ml-1">{delivery.status}</span>
                         </span>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                         <div className="flex items-center space-x-2">
                           <Package className="h-4 w-4 text-gray-400" />
@@ -319,34 +459,57 @@ const DriverApp: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setSelectedDelivery(delivery)}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
-                      >
-                        View Details
-                      </button>
-                      
-                      {delivery.status === 'Out for Delivery' && (
-                        <div className="flex space-x-1">
+
+                    <div className="flex flex-col space-y-2 ml-4">
+                      {/* Standard buttons for "Out for Delivery" or "Pending" */}
+                      {(delivery.status === 'Out for Delivery' || editingId === delivery.id) ? (
+                        <div className="flex flex-col space-y-2">
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={() => updateDeliveryStatus(delivery.id, 'Delivered')}
+                              className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                            >
+                              Delivered
+                            </button>
+                            <button
+                              onClick={() => showCommentModalForStatus(delivery.id, 'Not Delivered')}
+                              className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                            >
+                              Failed
+                            </button>
+                            <button
+                              onClick={() => showCommentModalForStatus(delivery.id, 'Postponed')}
+                              className="px-3 py-1 text-sm bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200"
+                            >
+                              Postpone
+                            </button>
+                          </div>
+
+                          {/* Cancel Edit Button */}
+                          {editingId === delivery.id && (
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 self-end"
+                            >
+                              Cancel Edit
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        // Edit Status Button for completed deliveries
+                        <div className="flex space-x-2">
                           <button
-                            onClick={() => updateDeliveryStatus(delivery.id, 'Delivered')}
-                            className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                            onClick={() => setSelectedDelivery(delivery)}
+                            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
                           >
-                            Delivered
+                            View Details
                           </button>
+
                           <button
-                            onClick={() => showCommentModalForStatus(delivery.id, 'Not Delivered')}
-                            className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                            onClick={() => setEditingId(delivery.id)}
+                            className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 border border-gray-300"
                           >
-                            Not Delivered
-                          </button>
-                          <button
-                            onClick={() => showCommentModalForStatus(delivery.id, 'Postponed')}
-                            className="px-3 py-1 text-sm bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200"
-                          >
-                            Postpone
+                            Edit Status
                           </button>
                         </div>
                       )}
@@ -373,7 +536,7 @@ const DriverApp: React.FC = () => {
                   ✕
                 </button>
               </div>
-              
+
               <div className="space-y-3 text-sm">
                 <div>
                   <span className="font-medium text-gray-700">Customer:</span>
@@ -403,7 +566,7 @@ const DriverApp: React.FC = () => {
                   <span className="ml-2 text-gray-900">{selectedDelivery.shift}</span>
                 </div>
               </div>
-              
+
               <div className="mt-6 flex space-x-3">
                 <button
                   onClick={() => setSelectedDelivery(null)}
@@ -449,7 +612,7 @@ const DriverApp: React.FC = () => {
                   ✕
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -464,7 +627,7 @@ const DriverApp: React.FC = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="flex space-x-3">
                   <button
                     onClick={() => {

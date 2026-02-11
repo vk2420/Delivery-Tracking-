@@ -155,6 +155,17 @@ const deliverySchema = new mongoose.Schema({
   address: {
     type: String,
     trim: true
+  },
+  coordinates: {
+    lat: Number,
+    lng: Number
+  },
+  routeSequence: {
+    type: Number,
+    default: 0
+  },
+  estimatedArrival: {
+    type: Date
   }
 }, {
   timestamps: true
