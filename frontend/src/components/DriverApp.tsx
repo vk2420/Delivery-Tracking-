@@ -7,14 +7,9 @@ import {
   Package,
   CheckCircle,
   XCircle,
-  Clock,
-  Navigation,
-
-  RefreshCw,
-  Map as MapIcon,
-  List
+  Clock
 } from 'lucide-react';
-import RouteMap from './RouteMap';
+// import RouteMap from './RouteMap';
 
 interface Driver {
   id: string;
